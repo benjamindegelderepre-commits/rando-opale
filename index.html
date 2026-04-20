@@ -69,7 +69,8 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;height:100dvh;display:flex;fl
 .nav-compass svg{width:100%;height:100%;}
 
 /* ── STATUS BAR ── */
-.status-bar{background:#0d1f0d;border-top:1px solid #1a3a1a;padding:0.38rem 0.8rem;display:none;flex-shrink:0;align-items:center;gap:0.7rem;flex-wrap:wrap;}
+.status-bar{background:#0d1f0d;border-top:1px solid #1a3a1a;padding:0.38rem 0.8rem;display:none;flex-shrink:0;align-items:center;gap:0.7rem;flex-wrap:wrap;overflow-x:auto;scrollbar-width:none;}
+.status-bar.active{display:flex !important;}
 .status-bar.active{display:flex;}
 .sb-item{display:flex;flex-direction:column;gap:0.04rem;}
 .sb-val{font-size:0.78rem;font-weight:800;color:#00c875;}
@@ -1158,13 +1159,13 @@ function onParcoursUpdate(){
   const isAdmin=ADMINS.includes((myName||'').toLowerCase());
   if(parcours.actif){
     document.getElementById('statusBar').classList.add('active');
-    document.getElementById('distBar').classList.add('active');
+
     document.getElementById('stopBtn').style.display=isAdmin?'block':'none';
     if(!chronoTimer){chronoTimer=setInterval(tickChrono,1000);tickChrono();}
     updatePanel();
   } else {
     document.getElementById('statusBar').classList.remove('active');
-    document.getElementById('distBar').classList.remove('active');
+
     document.getElementById('stopBtn').style.display='none';
     clearInterval(chronoTimer);chronoTimer=null;
   }
@@ -1185,15 +1186,14 @@ function tickChrono(){
   const e=ETAPES[(parcours.jour||1)-1];
   const kmLeft=Math.max(0,e.km-distKm);
   const pct=Math.min(100,distKm/e.km*100);
-  document.getElementById('distFill').style.width=pct.toFixed(1)+'%';
-  document.getElementById('distDone').textContent=pct.toFixed(0)+'%';
-  document.getElementById('distRemain').textContent=kmLeft.toFixed(1)+' km restants';
+  const df=document.getElementById('distFill');if(df)df.style.width=pct.toFixed(1)+'%';
 
   if(vit>0.5&&kmLeft>0){
     const eta=new Date(Date.now()+(kmLeft/vit)*3600000);
     const etaStr=eta.toLocaleTimeString('fr',{hour:'2-digit',minute:'2-digit'});
     document.getElementById('sbETA').textContent=etaStr;
-    document.getElementById('sETA2').textContent=etaStr;
+    const _eta2=document.getElementById('sETA2');if(_eta2)_eta2.textContent=etaStr;
+    const _pto=document.getElementById('pToTime');if(_pto)_pto.textContent=etaStr;
   }
 }
 
