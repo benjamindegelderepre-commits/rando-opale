@@ -829,6 +829,39 @@ function initMap(){
   svgDot(50.73481,1.59442,'#e85d26','Boulogne-sur-Mer — Arrivée J3');
   svgHouse(50.9505,1.9533,'Nuit 1 — Marck','10 Allée des Cormorans, 62730 Marck');
   svgHouse(50.8525,1.6095,'Nuit 2 — Audinghen','115 Rue du Bas, 62179 Audinghen');
+
+  // Villes du parcours
+  const VILLES=[
+    {name:'Dunkerque',             lat:51.0343, lng:2.3772},
+    {name:'Grande-Synthe',         lat:50.9997, lng:2.3044},
+    {name:'Loon-Plage',            lat:50.9999, lng:2.2300},
+    {name:'Craywick',              lat:50.9861, lng:2.1758},
+    {name:'Bourbourg',             lat:50.9455, lng:2.1972},
+    {name:"St-Georges-sur-l'Aa",  lat:50.9297, lng:2.1386},
+    {name:'Gravelines',            lat:50.9877, lng:2.1290},
+    {name:'Grand-Fort-Philippe',   lat:50.9985, lng:2.1033},
+    {name:'Oye-Plage',             lat:50.9762, lng:2.0437},
+    {name:'Marck',                 lat:50.9505, lng:1.9533},
+    {name:'Calais',                lat:50.9513, lng:1.8587},
+    {name:'Sangatte',              lat:50.9390, lng:1.7452},
+    {name:'Escalles',              lat:50.9200, lng:1.7328},
+    {name:'Wissant',               lat:50.8883, lng:1.6656},
+    {name:'Tardinghen',            lat:50.8780, lng:1.6289},
+    {name:'Audinghen',             lat:50.8525, lng:1.6095},
+    {name:'Audresselles',          lat:50.8280, lng:1.5894},
+    {name:'Ambleteuse',            lat:50.8025, lng:1.6028},
+    {name:'Wimereux',              lat:50.7670, lng:1.6086},
+    {name:'Boulogne-sur-Mer',      lat:50.7233, lng:1.6146},
+  ];
+  VILLES.forEach(v=>{
+    const ic=L.divIcon({
+      className:'',
+      html:'<div style="background:rgba(17,17,17,0.85);color:#ccc;padding:2px 6px;font-size:9px;font-weight:600;border-radius:3px;white-space:nowrap;border:1px solid #333;backdrop-filter:blur(2px)">'+v.name+'</div>',
+      iconAnchor:[0,8]
+    });
+    L.marker([v.lat,v.lng],{icon:ic,zIndexOffset:100}).addTo(map)
+      .bindPopup('<b>'+v.name+'</b>');
+  });
 }
 function svgDot(lat,lng,color,lbl){
   const ic=L.divIcon({className:'',html:'<svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="'+color+'" stroke="#fff" stroke-width="2.5"/></svg>',iconSize:[14,14],iconAnchor:[7,7]});
