@@ -856,7 +856,8 @@ function initMap(){
   VILLES.forEach(v=>{
     const ic=L.divIcon({
       className:'',
-      html:'<div style="background:rgba(17,17,17,0.85);color:#ccc;padding:2px 6px;font-size:9px;font-weight:600;border-radius:3px;white-space:nowrap;border:1px solid #333;backdrop-filter:blur(2px)">'+v.name+'</div>',
+      html:'<div style="background:rgba(17,17,17,0.88);color:#ddd;padding:2px 7px;font-size:9px;font-weight:600;border-radius:3px;white-space:nowrap;border:1px solid #333;display:inline-block;">'+v.name+'</div>',
+      iconSize:null,
       iconAnchor:[0,8]
     });
     L.marker([v.lat,v.lng],{icon:ic,zIndexOffset:100}).addTo(map)
@@ -1154,6 +1155,21 @@ function loadFirebaseData(){
   loadTrailFromFirebase();
   loadHealthFromFirebase();
   initPOIsFromFirebase();
+  listenArrivals();
+}
+
+function listenArrivals(){
+  if(!db) return;
+  db.ref('arrivals').on('child_added',snap=>{
+    const d=snap.val();
+    if(!d) return;
+    Object.values(d).forEach(a=>{
+      // Afficher seulement les arrivées récentes (moins de 30 sec)
+      if(Date.now()-a.ts<30000 && a.by!==myName){
+        showToast('📍 '+a.by+' arrive à '+a.city+' · '+a.time);
+      }
+    });
+  });
 }
 
 // ══ PARCOURS ══
@@ -1257,6 +1273,7 @@ function startGPS(){
   },{enableHighAccuracy:true,timeout:20000,maximumAge:3000});
   isTracking=true;
   document.getElementById('pauseNavItem').classList.add('show');
+  requestNotifPermission();
 
   // Surveiller la batterie pour éco mode
   if(navigator.getBattery){
@@ -2304,6 +2321,48 @@ function loadHealthFromFirebase(){
 // ══ MENU DROPDOWN ══
 function toggleMenu(){}
 function closeMenu(){}
+// ══ NOTIFICATIONS VILLES ══
+let notifiedCities=new Set();
+let notifPermission=false;
+
+// Demander permission notifications au démarrage GPS
+function requestNotifPermission(){
+  if('Notification' in window && Notification.permission==='default'){
+    Notification.requestPermission().then(p=>{
+      notifPermission=(p==='granted');
+    });
+  } else if(Notification.permission==='granted'){
+    notifPermission=true;
+  }
+}
+
+function checkCityProximity(lat,lng){
+  if(!VILLES) return;
+  VILLES.forEach(v=>{
+    const d=haversine(lat,lng,v.lat,v.lng);
+    // Dans un rayon de 300m de la ville
+    if(d<300 && !notifiedCities.has(v.name)){
+      notifiedCities.add(v.name);
+      const now=new Date().toLocaleTimeString('fr',{hour:'2-digit',minute:'2-digit'});
+      // Toast sur la carte
+      showToast('📍 '+v.name+' · '+now);
+      // Notification système si autorisée
+      if(notifPermission && Notification.permission==='granted'){
+        new Notification('📍 '+v.name, {
+          body:'Arrivée à '+now,
+          icon:'https://rando-opale.vercel.app/favicon.ico',
+          badge:'https://rando-opale.vercel.app/favicon.ico',
+          vibrate:[200,100,200]
+        });
+      }
+      // Sauvegarder dans Firebase pour que tout le monde voit
+      if(db) db.ref('arrivals/'+myId+'/'+Date.now()).set({
+        city:v.name, time:now, ts:Date.now(), by:myName
+      });
+    }
+  });
+}
+
 // ══ TRAIL — SAUVEGARDE & CHEMIN PARCOURU ══
 
 function saveCheckpoint(type){
