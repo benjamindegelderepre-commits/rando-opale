@@ -1,0 +1,2399 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Rando — Côte d'Opale</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Helvetica Neue',Arial,sans-serif;height:100dvh;display:flex;flex-direction:column;overflow:hidden;background:#111;color:#fff;}
+
+/* ── TOPBAR ── */
+.topbar{background:#0d0d0d;display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0.9rem;flex-shrink:0;border-bottom:1px solid #1e1e1e;gap:0.5rem;}
+.topbar-title{font-size:0.85rem;font-weight:900;letter-spacing:0.06em;text-transform:uppercase;flex-shrink:0;white-space:nowrap;color:#fff;}
+.topbar-right{display:flex;align-items:center;gap:0.4rem;flex-shrink:0;}
+.pill{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:100px;padding:0.22rem 0.55rem;font-size:0.55rem;color:#888;white-space:nowrap;flex-shrink:0;cursor:pointer;}
+.pill b{color:#00c875;}
+.btn-name{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:100px;padding:0.22rem 0.65rem;font-size:0.55rem;font-weight:700;color:#ccc;cursor:pointer;white-space:nowrap;transition:background .2s;max-width:90px;overflow:hidden;text-overflow:ellipsis;}
+.btn-name:hover{background:#252525;}
+.btn-sm{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:100px;padding:0.2rem 0.55rem;font-size:0.52rem;font-weight:700;color:#aaa;cursor:pointer;text-transform:uppercase;white-space:nowrap;transition:background .2s;letter-spacing:0.04em;flex-shrink:0;}
+.btn-sm:hover{background:#252525;}
+
+/* ── BARRE NAVIGATION (Jeux | Histo | Logements | GPS) ── */
+.navbar{background:#0d0d0d;border-bottom:1px solid #1e1e1e;display:flex;align-items:stretch;flex-shrink:0;}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0.4rem 0.2rem;cursor:pointer;border-right:1px solid #1e1e1e;transition:background .15s;gap:0.1rem;position:relative;}
+.nav-item:last-child{border-right:none;}
+.nav-item:hover{background:#1a1a1a;}
+.nav-item.active{background:#1a1a1a;}
+.nav-icon{font-size:1.1rem;line-height:1;}
+.nav-lbl{font-size:0.42rem;letter-spacing:0.1em;text-transform:uppercase;color:#555;font-weight:700;}
+.nav-item.gps-item .nav-icon{width:18px;height:18px;border-radius:50%;background:#c00;display:flex;align-items:center;justify-content:center;margin:0 auto;}
+.nav-item.gps-item.on .nav-icon{background:#00c875;animation:pb 2s infinite;}
+.nav-item.gps-item.wait .nav-icon{background:#facc15;animation:bb .6s infinite;}
+.nav-item.pause-item{display:none;}
+.nav-item.pause-item.visible{display:flex;}
+/* MENU DROPDOWN */
+.menu-btn{width:26px;height:26px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:50%;color:#aaa;font-size:0.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .2s;}
+.menu-btn:hover{background:#252525;}
+.dropdown{position:absolute;top:2.8rem;right:0.5rem;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;padding:0.4rem;display:none;flex-direction:column;gap:0.3rem;z-index:9000;min-width:160px;box-shadow:0 4px 16px rgba(0,0,0,0.5);}
+.dropdown.open{display:flex;}
+.dd-item{display:flex;align-items:center;gap:0.5rem;padding:0.45rem 0.6rem;border-radius:5px;cursor:pointer;font-size:0.65rem;color:#ccc;transition:background .15s;white-space:nowrap;}
+.dd-item:hover{background:#2a2a2a;color:#fff;}
+.dd-icon{font-size:0.9rem;width:1.2rem;text-align:center;}
+.gps-dot{width:18px;height:18px;border-radius:50%;background:#c00;border:none;cursor:pointer;flex-shrink:0;}
+.gps-dot.on{background:#00c875;animation:pb 2s infinite;}
+.gps-dot.wait{background:#facc15;animation:bb .6s infinite;}
+@keyframes pb{0%{box-shadow:0 0 0 0 rgba(0,200,117,.5)}70%{box-shadow:0 0 0 9px rgba(0,200,117,0)}100%{box-shadow:0 0 0 0 rgba(0,200,117,0)}}
+@keyframes bb{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── MÉTÉO BAR ── */
+.meteo-bar{background:#0a0a1a;border-bottom:1px solid #1a1a2a;padding:0.35rem 0.8rem;display:flex;align-items:center;gap:0.9rem;flex-shrink:0;overflow-x:auto;scrollbar-width:none;}
+.meteo-bar::-webkit-scrollbar{display:none;}
+.mb-item{display:flex;align-items:center;gap:0.3rem;white-space:nowrap;flex-shrink:0;}
+.mb-icon{font-size:1rem;}
+.mb-val{font-size:0.7rem;font-weight:800;color:#fff;}
+.mb-lbl{font-size:0.42rem;letter-spacing:0.12em;text-transform:uppercase;color:#444;}
+.mb-sep{color:#1a1a2a;font-size:1rem;}
+.meteo-loading{font-size:0.55rem;color:#444;font-style:italic;}
+
+/* ── MAP ── */
+#map{flex:1;z-index:1;min-height:0;}
+
+/* ── NAVIGATION ADMIN (boussole GPS) ── */
+
+
+
+.nav-compass svg{width:100%;height:100%;}
+
+
+
+
+
+
+/* ── STATUS BAR ── */
+.status-bar{background:#0d1f0d;border-top:1px solid #1a3a1a;padding:0.38rem 0.8rem;display:none;flex-shrink:0;align-items:center;gap:0.7rem;flex-wrap:wrap;overflow-x:auto;scrollbar-width:none;}
+.status-bar.active{display:flex !important;}
+.status-bar.active{display:flex;}
+.sb-item{display:flex;flex-direction:column;gap:0.04rem;}
+.sb-val{font-size:0.78rem;font-weight:800;color:#00c875;}
+.sb-lbl{font-size:0.4rem;letter-spacing:0.14em;text-transform:uppercase;color:#3a6a3a;}
+.sb-sep{color:#1a3a1a;font-size:1rem;}
+
+/* ── DISTANCE RESTANTE ── */
+.dist-bar{background:#1a0d00;border-top:1px solid #3a2000;padding:0.32rem 0.8rem;display:none;flex-shrink:0;align-items:center;gap:0.6rem;}
+.dist-bar.active{display:flex;}
+.dist-progress{flex:1;height:4px;background:#2a1500;border-radius:2px;overflow:hidden;}
+.dist-fill{height:100%;background:linear-gradient(90deg,#e85d26,#facc15);border-radius:2px;transition:width .5s ease;}
+.dist-text{font-size:0.62rem;font-weight:800;color:#e85d26;white-space:nowrap;}
+.dist-remain{font-size:0.55rem;color:#666;white-space:nowrap;}
+
+/* ── PANEL ── */
+.panel{background:#111;border-top:1px solid #1e1e1e;padding:0.55rem 0.8rem 0.65rem;flex-shrink:0;}
+.panel-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:0.35rem;}
+.panel-day{font-size:0.54rem;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:#444;}
+.admin-btn{background:#e85d26;color:#fff;border:none;border-radius:100px;padding:0.16rem 0.55rem;font-size:0.48rem;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;}
+.panel-route{display:flex;align-items:center;gap:0.28rem;font-size:0.68rem;font-weight:700;margin-bottom:0.35rem;flex-wrap:wrap;}
+.panel-route .lbl{color:#3a3a3a;font-weight:400;font-size:0.58rem;}
+.panel-route .val{color:#fff;}
+.panel-route .arr{color:#00c875;}
+.panel-route .sep{color:#2a2a2a;}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:0.2rem;padding-top:0.35rem;border-top:1px solid #1a1a1a;}
+.stat .sv{font-size:0.82rem;font-weight:800;color:#fff;}
+.stat .sl{font-size:0.4rem;letter-spacing:0.1em;text-transform:uppercase;color:#aaa;}
+
+/* ── OVERLAYS ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.93);display:flex;align-items:center;justify-content:center;z-index:9999;padding:1.2rem;}
+.box{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;padding:1.1rem;width:100%;max-width:340px;display:flex;flex-direction:column;gap:0.65rem;max-height:88dvh;overflow-y:auto;}
+.box h2{font-size:0.85rem;font-weight:800;}
+.box p{font-size:0.58rem;color:#555;line-height:1.5;}
+.box input{width:100%;padding:0.45rem 0.7rem;background:#111;border:1px solid #2a2a2a;border-radius:4px;color:#fff;font-size:0.78rem;font-family:inherit;}
+.box input:focus{outline:none;border-color:#e85d26;}
+.btns{display:flex;gap:0.45rem;}
+.btns button{padding:0.5rem;background:#e85d26;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:800;font-size:0.62rem;letter-spacing:0.1em;text-transform:uppercase;flex:1;}
+.btns button.sec{background:#111;border:1px solid #2a2a2a;color:#666;}
+
+/* ADMIN PANEL */
+.adm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.93);display:flex;align-items:center;justify-content:center;z-index:9998;padding:1.2rem;}
+.adm-box{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;padding:1.1rem;width:100%;max-width:360px;display:flex;flex-direction:column;gap:0.65rem;max-height:92dvh;overflow-y:auto;}
+.adm-box h2{font-size:0.85rem;font-weight:800;color:#e85d26;}
+.launch-card{background:#0d1f0d;border:1px solid #1a4a1a;border-radius:6px;padding:0.8rem;display:flex;flex-direction:column;gap:0.55rem;}
+.launch-card h3{font-size:0.65rem;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:#00c875;}
+.day-select{display:flex;gap:0.35rem;}
+.day-btn{flex:1;padding:0.4rem;background:#111;border:1px solid #2a2a2a;border-radius:4px;color:#555;font-size:0.62rem;font-weight:700;cursor:pointer;text-align:center;transition:all .2s;}
+.day-btn.sel{background:#1a3a1a;border-color:#2a6a2a;color:#00c875;}
+.launch-btn{padding:0.55rem;background:#00c875;color:#000;border:none;border-radius:4px;font-weight:800;font-size:0.65rem;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;}
+.stop-btn{padding:0.42rem;background:#200;border:1px solid #500;color:#f55;border-radius:4px;font-size:0.6rem;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:0.08em;}
+
+/* NAV CARD */
+
+
+.aday{background:#111;border:1px solid #1e1e1e;border-radius:6px;padding:0.65rem;display:flex;flex-direction:column;gap:0.38rem;}
+.aday-title{font-size:0.52rem;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:#e85d26;}
+.trow{display:flex;gap:0.45rem;align-items:center;}
+.trow label{font-size:0.52rem;color:#444;width:65px;flex-shrink:0;}
+.trow input{flex:1;padding:0.35rem 0.55rem;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:4px;color:#fff;font-size:0.72rem;font-family:inherit;}
+.save-btn{padding:0.48rem;background:#e85d26;color:#fff;border:none;border-radius:4px;font-weight:800;font-size:0.62rem;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;}
+.close-btn{padding:0.4rem;background:#111;color:#555;border:1px solid #222;border-radius:4px;font-size:0.6rem;cursor:pointer;}
+
+/* POI MODAL */
+
+
+
+
+
+/* LOGEMENTS */
+.log-item{background:#111;border:1px solid #2a2a2a;border-radius:6px;padding:0.75rem;display:flex;flex-direction:column;gap:0.38rem;}
+.log-night{font-size:0.52rem;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;color:#e85d26;}
+.log-name{font-size:0.75rem;font-weight:700;color:#fff;}
+.log-addr{font-size:0.6rem;color:#555;}
+.log-btns{display:flex;gap:0.35rem;margin-top:0.15rem;}
+.log-btns a{flex:1;padding:0.38rem;border-radius:4px;font-size:0.54rem;font-weight:700;text-align:center;text-decoration:none;letter-spacing:0.07em;}
+.log-btns a.apple{background:#1a3a1a;border:1px solid #2a5a2a;color:#00c875;}
+.log-btns a.goog{background:#1a1a3a;border:1px solid #2a2a5a;color:#6699ff;}
+
+/* ── SANTÉ BAR ── */
+.health-bar{background:#1a0a1a;border-top:1px solid #3a1a3a;padding:0.35rem 0.8rem;display:none;flex-shrink:0;align-items:center;gap:0.8rem;overflow-x:auto;scrollbar-width:none;}
+.health-bar::-webkit-scrollbar{display:none;}
+.health-bar.active{display:flex;}
+.hb-item{display:flex;align-items:center;gap:0.3rem;white-space:nowrap;flex-shrink:0;}
+.hb-icon{font-size:0.95rem;}
+.hb-info{display:flex;flex-direction:column;gap:0.02rem;}
+.hb-val{font-size:0.72rem;font-weight:800;color:#fff;}
+.hb-lbl{font-size:0.4rem;letter-spacing:0.12em;text-transform:uppercase;color:#6a3a6a;}
+.hb-sep{color:#3a1a3a;font-size:1rem;flex-shrink:0;}
+.health-badge{background:#1a0a1a;border:1px solid #3a1a3a;border-radius:100px;padding:0.18rem 0.55rem;font-size:0.48rem;color:#c875ff;white-space:nowrap;display:none;}
+.health-badge.active{display:block;}
+
+/* ── POI ADMIN ── */
+.poi-emoji-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:0.4rem;margin:0.4rem 0;}
+.poi-emoji-btn{aspect-ratio:1;background:#111;border:2px solid #2a2a2a;border-radius:6px;font-size:1.3rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.poi-emoji-btn:hover,.poi-emoji-btn.selected{border-color:#e85d26;background:#1a0a00;transform:scale(1.1);}
+.poi-list-item{display:flex;align-items:center;gap:0.5rem;background:#111;border:1px solid #1e1e1e;border-radius:5px;padding:0.45rem 0.6rem;margin-bottom:0.3rem;}
+.poi-list-icon{font-size:1.1rem;flex-shrink:0;}
+.poi-list-info{flex:1;}
+.poi-list-name{font-size:0.65rem;font-weight:700;color:#fff;}
+.poi-list-desc{font-size:0.52rem;color:#555;}
+.poi-list-del{background:none;border:none;color:#555;font-size:0.9rem;cursor:pointer;padding:0.1rem 0.3rem;}
+.poi-list-del:hover{color:#e85d26;}
+
+.toast{position:fixed;bottom:4.5rem;left:50%;transform:translateX(-50%) translateY(8px);background:#222;color:#fff;padding:0.35rem 0.9rem;border-radius:4px;font-size:0.56rem;z-index:9997;opacity:0;transition:all .2s ease;pointer-events:none;white-space:nowrap;border:1px solid #333;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* ── PAUSE BAR ── */
+.pause-bar{background:#1a1200;border-top:1px solid #3a2800;padding:0.38rem 0.8rem;display:none;flex-shrink:0;align-items:center;justify-content:space-between;gap:0.6rem;}
+.pause-bar.active{display:flex;}
+.pause-info{display:flex;align-items:center;gap:0.5rem;}
+.pause-icon{font-size:1.1rem;animation:pb2 1.5s infinite;}
+@keyframes pb2{0%,100%{opacity:1}50%{opacity:.4}}
+.pause-txt{display:flex;flex-direction:column;gap:0.05rem;}
+.pause-title{font-size:0.65rem;font-weight:800;color:#facc15;}
+.pause-time{font-size:0.5rem;color:#7a6000;letter-spacing:0.1em;}
+.pause-resume{padding:0.3rem 0.8rem;background:#facc15;color:#000;border:none;border-radius:100px;font-size:0.55rem;font-weight:800;cursor:pointer;letter-spacing:0.08em;text-transform:uppercase;}
+
+/* ── ÉCO BADGE ── */
+.eco-badge{background:#0d2a0d;border:1px solid #1a4a1a;border-radius:100px;padding:0.18rem 0.55rem;font-size:0.48rem;color:#4a9a4a;white-space:nowrap;display:none;}
+.eco-badge.active{display:block;}
+.leaflet-popup-content-wrapper{background:#1a1a1a !important;color:#fff !important;border-radius:4px !important;border:1px solid #2a2a2a !important;font-size:.62rem !important;box-shadow:none !important;}
+.leaflet-popup-tip{background:#1a1a1a !important;}
+.leaflet-popup-close-button{color:#555 !important;}
+
+/* ── JEUX ── */
+.jeux-menu{display:flex;flex-direction:column;gap:0.5rem;}
+.jeux-btn{padding:0.7rem;background:#111;border:1px solid #2a2a2a;border-radius:6px;color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:0.6rem;transition:background .2s;}
+.jeux-btn:hover{background:#1a1a1a;border-color:#444;}
+.jeux-btn .ji{font-size:1.3rem;}
+.jeux-btn .jt{display:flex;flex-direction:column;gap:0.1rem;}
+.jeux-btn .jn{font-size:0.72rem;font-weight:800;}
+.jeux-btn .jd{font-size:0.52rem;color:#555;}
+
+/* TIC TAC TOE */
+.ttt-board{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:0.5rem 0;}
+.ttt-cell{aspect-ratio:1;background:#111;border:2px solid #2a2a2a;border-radius:6px;font-size:2.2rem;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s;}
+.ttt-cell:hover:not(.taken){background:#1a1a1a;}
+.ttt-cell.taken{cursor:default;}
+.ttt-cell.x{color:#e85d26;}
+.ttt-cell.o{color:#1b9fdb;}
+.ttt-status{font-size:0.68rem;font-weight:800;text-align:center;padding:0.3rem;color:#fff;}
+.ttt-status.win{color:#00c875;}
+.ttt-status.lose{color:#e85d26;}
+.game-players{display:flex;gap:0.5rem;margin-bottom:0.4rem;}
+.game-player{flex:1;background:#111;border:1px solid #2a2a2a;border-radius:4px;padding:0.35rem;text-align:center;font-size:0.58rem;}
+.game-player.active{border-color:#e85d26;color:#e85d26;}
+.game-player .gp-sym{font-size:1rem;display:block;}
+.game-player .gp-name{font-size:0.5rem;color:#555;margin-top:0.1rem;}
+
+/* BATAILLE NAVALE */
+.bn-wrap{display:flex;flex-direction:column;gap:0.5rem;}
+.bn-preview{display:flex;align-items:center;justify-content:space-between;background:#0a1520;border:1px solid #1a2a3a;border-radius:6px;padding:0.5rem 0.7rem;gap:0.6rem;}
+.bn-preview-ship{display:flex;gap:3px;align-items:center;}
+.bn-preview-cell{width:18px;height:18px;background:#4a8aff;border-radius:2px;border:1px solid #6aaaff;}
+.bn-preview-cell.hit{background:#e85d26;}
+.bn-pivot-btn{background:#1a2a4a;border:1px solid #2a4a8a;border-radius:4px;color:#6aaaff;font-size:0.65rem;padding:0.3rem 0.6rem;cursor:pointer;font-weight:700;transition:background .15s;white-space:nowrap;}
+.bn-pivot-btn:hover{background:#2a3a6a;}
+.bn-ship-label{font-size:0.58rem;color:#6aaaff;font-weight:700;}
+.bn-boards{display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin:0.2rem 0;}
+.bn-board-wrap{display:flex;flex-direction:column;gap:0.2rem;}
+.bn-board-title{font-size:0.48rem;letter-spacing:0.12em;text-transform:uppercase;color:#555;text-align:center;}
+.bn-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;}
+.bn-cell{aspect-ratio:1;background:#0a1520;border:1px solid #1a2a3a;border-radius:2px;cursor:pointer;transition:background .1s;position:relative;}
+.bn-cell:hover{background:#1a2a3a;}
+.bn-cell.ship{background:#2a4a6a;border-color:#4a8aff;}
+.bn-cell.preview{background:#1a3a5a;border-color:#4a8aff;opacity:0.7;}
+.bn-cell.preview-bad{background:#3a1a1a;border-color:#e85d26;opacity:0.7;}
+.bn-cell.hit{background:#c00;border-color:#e00;}
+.bn-cell.miss{background:#0d1820;}
+.bn-cell.miss::after{content:'•';color:#2a4050;position:absolute;font-size:0.7rem;top:50%;left:50%;transform:translate(-50%,-50%);}
+.bn-phase{font-size:0.58rem;font-weight:800;text-align:center;color:#facc15;margin:0.15rem 0;min-height:1rem;}
+
+.game-reset{padding:0.4rem;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:4px;font-size:0.58rem;color:#888;cursor:pointer;width:100%;text-align:center;margin-top:0.3rem;}
+
+/* PIERRE FEUILLE CISEAUX */
+.pfc-choices{display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem;margin:0.6rem 0;}
+.pfc-btn{aspect-ratio:1;background:#111;border:2px solid #2a2a2a;border-radius:10px;font-size:2.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;-webkit-tap-highlight-color:transparent;}
+.pfc-btn:hover,.pfc-btn:active{background:#1a1a1a;border-color:#555;transform:scale(1.06);}
+.pfc-btn.selected{border-color:#e85d26;background:#1a0a00;transform:scale(1.08);}
+.pfc-result{display:flex;align-items:center;justify-content:center;gap:0.8rem;margin:0.4rem 0;background:#111;border-radius:8px;padding:0.6rem;}
+.pfc-side{display:flex;flex-direction:column;align-items:center;gap:0.2rem;}
+.pfc-side .icon{font-size:2.5rem;line-height:1;}
+.pfc-side .name{font-size:0.5rem;letter-spacing:0.1em;text-transform:uppercase;color:#555;}
+.pfc-vs{font-size:0.7rem;font-weight:800;color:#333;}
+.pfc-score{display:flex;gap:0.5rem;margin-bottom:0.4rem;}
+.pfc-score-box{flex:1;background:#111;border:1px solid #2a2a2a;border-radius:4px;padding:0.4rem;text-align:center;}
+.pfc-score-box .sc-val{font-size:1.4rem;font-weight:800;color:#fff;}
+.pfc-score-box .sc-name{font-size:0.48rem;color:#555;text-transform:uppercase;letter-spacing:0.1em;}
+.pfc-score-box.winning{border-color:#e85d26;}
+.pfc-round{font-size:0.55rem;color:#444;text-align:center;margin-bottom:0.3rem;letter-spacing:0.1em;text-transform:uppercase;}
+.pfc-waiting{font-size:1.8rem;text-align:center;animation:bb 1s infinite;}
+
+/* PUISSANCE 4 */
+.p4-board{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;background:#1b3a8a;padding:6px;border-radius:8px;margin:0.4rem 0;}
+.p4-cell{aspect-ratio:1;border-radius:50%;background:#0d1f5a;transition:background .2s;min-width:0;}
+.p4-cell.p1{background:#e85d26;}
+.p4-cell.p2{background:#facc15;}
+.p4-col-btn{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:3px;}
+.p4-col-btn button{padding:0.2rem 0;background:#1a3a7a;border:none;border-radius:4px;color:#6a9aff;font-size:0.6rem;cursor:pointer;transition:background .15s;}
+.p4-col-btn button:hover{background:#2a4a9a;}
+
+/* ── HISTORIQUE ── */
+.trail-item{display:flex;align-items:flex-start;gap:0.6rem;padding:0.5rem 0;border-bottom:1px solid #1a1a1a;}
+.trail-item:last-child{border-bottom:none;}
+.trail-dot{width:8px;height:8px;border-radius:50%;background:#00c875;flex-shrink:0;margin-top:4px;}
+.trail-dot.auto{background:#1b9fdb;}
+.trail-info{display:flex;flex-direction:column;gap:0.1rem;flex:1;}
+.trail-time{font-size:0.68rem;font-weight:800;color:#fff;}
+.trail-ago{font-size:0.52rem;color:#555;}
+.trail-coords{font-size:0.5rem;color:#444;font-family:monospace;}
+</style>
+</head>
+<body>
+
+<!-- MODAL NOM -->
+<div class="overlay" id="modalName">
+  <div class="box">
+    <h2>👋 Ton prénom</h2>
+    <p>Visible sur la carte. <b style="color:#e85d26">Lucas</b> et <b style="color:#e85d26">Benjamin</b> sont admins.</p>
+    <input type="text" id="nameInput" placeholder="Ex: Benjamin" maxlength="20" autocomplete="off"/>
+    <div class="btns"><button onclick="saveName()">Rejoindre →</button></div>
+  </div>
+</div>
+
+<!-- MODAL LOGEMENTS -->
+<div class="overlay" id="modalLogements" style="display:none">
+  <div class="box">
+    <h2>🏠 Logements</h2>
+    <div class="log-item">
+      <div class="log-night">Nuit 1 — 8 mai · Marck</div>
+      <div class="log-name">10 Allée des Cormorans</div>
+      <div class="log-addr">62730 Marck, France</div>
+      <div class="log-btns">
+        <a class="apple" href="https://maps.apple.com/?q=10+Allée+des+Cormorans+62730+Marck" target="_blank">🗺 Apple Maps</a>
+        <a class="goog" href="https://www.google.com/maps/search/10+Allée+des+Cormorans+62730+Marck" target="_blank">🔵 Google Maps</a>
+      </div>
+    </div>
+    <div class="log-item">
+      <div class="log-night">Nuit 2 — 9 mai · Audinghen</div>
+      <div class="log-name">115 Rue du Bas</div>
+      <div class="log-addr">62179 Audinghen, France</div>
+      <div class="log-btns">
+        <a class="apple" href="https://maps.apple.com/?q=115+Rue+du+Bas+62179+Audinghen" target="_blank">🗺 Apple Maps</a>
+        <a class="goog" href="https://www.google.com/maps/search/115+Rue+du+Bas+62179+Audinghen" target="_blank">🔵 Google Maps</a>
+      </div>
+    </div>
+    <div class="btns"><button class="sec" onclick="hide('modalLogements')">Fermer</button></div>
+  </div>
+</div>
+
+<!-- ADMIN PANEL -->
+<div class="adm-overlay" id="adminPanel" style="display:none">
+  <div class="adm-box">
+    <h2>⚙️ Admin</h2>
+
+    <div class="launch-card">
+      <h3>🚀 Lancer le parcours</h3>
+      <div class="day-select">
+        <div class="day-btn sel" id="db1" onclick="selDay(1)">J1 · 8 mai</div>
+        <div class="day-btn" id="db2" onclick="selDay(2)">J2 · 9 mai</div>
+        <div class="day-btn" id="db3" onclick="selDay(3)">J3 · 10 mai</div>
+      </div>
+      <button class="launch-btn" onclick="lancerParcours()">▶ Lancer Jour <span id="launchLbl">1</span></button>
+      <button class="stop-btn" id="stopBtn" onclick="stopParcours()" style="display:none">⏹ Arrêter</button>
+    </div>
+
+
+    <div class="aday">
+      <div class="aday-title">Jour 1 · Dunkerque → Marck</div>
+      <div class="trow"><label>Départ</label><input type="time" id="j1dep" value="08:00"/></div>
+      <div class="trow"><label>Arrivée</label><input type="time" id="j1arr" value="18:00"/></div>
+    </div>
+    <div class="aday">
+      <div class="aday-title">Jour 2 · Marck → Audinghen</div>
+      <div class="trow"><label>Départ</label><input type="time" id="j2dep" value="08:00"/></div>
+      <div class="trow"><label>Arrivée</label><input type="time" id="j2arr" value="18:00"/></div>
+    </div>
+    <div class="aday">
+      <div class="aday-title">Jour 3 · Audinghen → Boulogne</div>
+      <div class="trow"><label>Départ</label><input type="time" id="j3dep" value="08:00"/></div>
+      <div class="trow"><label>Arrivée</label><input type="time" id="j3arr" value="18:00"/></div>
+    </div>
+    <button class="save-btn" onclick="saveHoraires()">💾 Sauvegarder</button>
+
+    <!-- Gestion des points -->
+    <div class="aday">
+      <div class="aday-title">🗑 Gestion des points</div>
+      <button onclick="adminClearTrail()" style="width:100%;padding:0.45rem;background:#3a0000;border:1px solid #600;color:#f66;border-radius:4px;font-size:0.62rem;font-weight:700;cursor:pointer;margin-bottom:0.3rem;text-transform:uppercase;letter-spacing:0.08em;">🗑 Effacer tous les checkpoints</button>
+      <button onclick="adminClearUsers()" style="width:100%;padding:0.45rem;background:#1a1a00;border:1px solid #553300;color:#fa0;border-radius:4px;font-size:0.62rem;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:0.08em;">👥 Déconnecter les fantômes</button>
+    </div>
+
+    <div class="aday" style="background:#0d1a2a;border-color:#1a3a5a;">
+      <div class="aday-title" style="color:#6699ff;">📍 Points d'intérêt</div>
+      <button onclick="hide('adminPanel');show('modalPoiList');loadPOIList()" style="width:100%;padding:0.45rem;background:#1a1a3a;border:1px solid #2a2a5a;border-radius:4px;color:#6699ff;font-size:0.62rem;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:0.08em;">Gérer les points →</button>
+    </div>
+
+    <button class="close-btn" onclick="hide('adminPanel')">Fermer</button>
+  </div>
+</div>
+
+<!-- MODAL HISTORIQUE -->
+<div class="overlay" id="modalHistory" style="display:none">
+  <div class="box" style="max-width:340px">
+    <h2>🕐 Historique des positions</h2>
+    <div style="font-size:0.55rem;color:#555;margin-top:-0.3rem">Sauvegardes automatiques toutes les 30 min</div>
+    <div id="historyList" style="display:flex;flex-direction:column;max-height:55dvh;overflow-y:auto;margin-top:0.2rem">
+      <div style="font-size:0.58rem;color:#555;font-style:italic">Aucune sauvegarde pour le moment.</div>
+    </div>
+    <div class="btns">
+      <button class="sec" onclick="clearHistory()" style="flex:0.5;font-size:0.55rem">🗑 Effacer</button>
+      <button class="sec" onclick="hide('modalHistory')">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CHOIX JEUX -->
+<div class="overlay" id="modalJeux" style="display:none">
+  <div class="box">
+    <h2>🎮 Jeux</h2>
+    <p>Jouez ensemble le soir à l'hébergement !</p>
+    <div class="jeux-menu">
+      <button class="jeux-btn" onclick="openTTT()">
+        <div class="ji">⭕</div>
+        <div class="jt"><div class="jn">Tic-Tac-Toe</div><div class="jd">2 joueurs · Tour par tour</div></div>
+      </button>
+      <button class="jeux-btn" onclick="openBN()">
+        <div class="ji">🚢</div>
+        <div class="jt"><div class="jn">Bataille Navale</div><div class="jd">2 joueurs · 7×7</div></div>
+      </button>
+      <button class="jeux-btn" onclick="openP4()">
+        <div class="ji">🔴</div>
+        <div class="jt"><div class="jn">Puissance 4</div><div class="jd">2 joueurs · 7×6</div></div>
+      </button>
+      <button class="jeux-btn" onclick="openPFC()">
+        <div class="ji">✂️</div>
+        <div class="jt"><div class="jn">Pierre Feuille Ciseaux</div><div class="jd">2 joueurs · Meilleur de 5</div></div>
+      </button>
+    </div>
+    <div class="btns"><button class="sec" onclick="hide('modalJeux')">Fermer</button></div>
+  </div>
+</div>
+
+<!-- MODAL TIC-TAC-TOE -->
+<div class="overlay" id="modalTTT" style="display:none;align-items:flex-start;padding-top:1rem;">
+  <div class="box" style="max-width:360px;width:100%">
+    <h2>⭕ Tic-Tac-Toe</h2>
+    <div class="game-players">
+      <div class="game-player active" id="tttP1"><span class="gp-sym">❌</span><div class="gp-name" id="tttP1Name">—</div></div>
+      <div class="game-player" id="tttP2"><span class="gp-sym">⭕</span><div class="gp-name" id="tttP2Name">En attente…</div></div>
+    </div>
+    <div class="ttt-status" id="tttStatus">En attente d'un adversaire…</div>
+    <div class="ttt-board" id="tttBoard">
+      <div class="ttt-cell" onclick="tttPlay(0)"></div>
+      <div class="ttt-cell" onclick="tttPlay(1)"></div>
+      <div class="ttt-cell" onclick="tttPlay(2)"></div>
+      <div class="ttt-cell" onclick="tttPlay(3)"></div>
+      <div class="ttt-cell" onclick="tttPlay(4)"></div>
+      <div class="ttt-cell" onclick="tttPlay(5)"></div>
+      <div class="ttt-cell" onclick="tttPlay(6)"></div>
+      <div class="ttt-cell" onclick="tttPlay(7)"></div>
+      <div class="ttt-cell" onclick="tttPlay(8)"></div>
+    </div>
+    <button class="game-reset" onclick="tttReset()">🔄 Nouvelle partie</button>
+    <div class="btns" style="margin-top:0.3rem"><button class="sec" onclick="hide('modalTTT');show('modalJeux')">← Retour</button></div>
+  </div>
+</div>
+
+<!-- MODAL BATAILLE NAVALE -->
+<div class="overlay" id="modalBN" style="display:none;align-items:flex-start;padding-top:1rem;">
+  <div class="box" style="max-width:400px;width:100%;">
+    <h2>🚢 Bataille Navale</h2>
+    <div class="game-players">
+      <div class="game-player active" id="bnP1"><span class="gp-sym">🔵</span><div class="gp-name" id="bnP1Name">—</div></div>
+      <div class="game-player" id="bnP2"><span class="gp-sym">🔴</span><div class="gp-name" id="bnP2Name">En attente…</div></div>
+    </div>
+    <div class="bn-phase" id="bnPhase">En attente d'un adversaire…</div>
+
+    <!-- Bateau à placer (phase placement) -->
+    <div id="bnPlaceArea" style="display:none">
+      <div class="bn-preview">
+        <div>
+          <div class="bn-ship-label" id="bnShipLabel">Bateau 1 · 3 cases</div>
+          <div class="bn-preview-ship" id="bnPreviewShip"></div>
+        </div>
+        <button class="bn-pivot-btn" onclick="bnPivot()">&#8635; Pivoter</button>
+      </div>
+      <p style="font-size:0.52rem;color:#555;margin:0.3rem 0">Clique sur la grille pour positionner · Valide ensuite</p>
+    </div>
+    <button id="bnValidateBtn" onclick="bnValidateShip()" style="display:none;width:100%;padding:0.65rem;background:#00c875;color:#000;border:none;border-radius:6px;font-weight:800;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;margin-bottom:0.4rem;box-shadow:0 2px 8px rgba(0,200,117,0.3);">&#10003; Valider ce bateau</button>
+
+    <div class="bn-boards">
+      <div class="bn-board-wrap">
+        <div class="bn-board-title">Ma flotte</div>
+        <div class="bn-grid" id="bnMyGrid"></div>
+      </div>
+      <div class="bn-board-wrap">
+        <div class="bn-board-title">Ennemi</div>
+        <div class="bn-grid" id="bnEnemyGrid"></div>
+      </div>
+    </div>
+    <button class="game-reset" onclick="bnReset()">🔄 Nouvelle partie</button>
+    <div class="btns" style="margin-top:0.3rem"><button class="sec" onclick="hide('modalBN');show('modalJeux')">← Retour</button></div>
+  </div>
+</div>
+
+<!-- MODAL PUISSANCE 4 -->
+<div class="overlay" id="modalP4" style="display:none;align-items:flex-start;padding-top:1rem;">
+  <div class="box" style="max-width:380px;width:100%">
+    <h2>🔴 Puissance 4</h2>
+    <div class="game-players">
+      <div class="game-player active" id="p4P1"><span class="gp-sym">🔴</span><div class="gp-name" id="p4P1Name">—</div></div>
+      <div class="game-player" id="p4P2"><span class="gp-sym">🟡</span><div class="gp-name" id="p4P2Name">En attente…</div></div>
+    </div>
+    <div class="ttt-status" id="p4Status">En attente d'un adversaire…</div>
+    <div class="p4-col-btn" id="p4ColBtns">
+      <button onclick="p4Drop(0)">▼</button>
+      <button onclick="p4Drop(1)">▼</button>
+      <button onclick="p4Drop(2)">▼</button>
+      <button onclick="p4Drop(3)">▼</button>
+      <button onclick="p4Drop(4)">▼</button>
+      <button onclick="p4Drop(5)">▼</button>
+      <button onclick="p4Drop(6)">▼</button>
+    </div>
+    <div class="p4-board" id="p4Board"></div>
+    <button class="game-reset" onclick="p4Reset()">🔄 Nouvelle partie</button>
+    <div class="btns" style="margin-top:0.3rem"><button class="sec" onclick="hide('modalP4');show('modalJeux')">← Retour</button></div>
+  </div>
+</div>
+
+<!-- MODAL PIERRE FEUILLE CISEAUX -->
+<div class="overlay" id="modalPFC" style="display:none;align-items:flex-start;padding-top:1rem;">
+  <div class="box" style="max-width:340px;width:100%">
+    <h2>✂️ Pierre Feuille Ciseaux</h2>
+    <div class="game-players">
+      <div class="game-player" id="pfcP1"><span class="gp-sym">🔵</span><div class="gp-name" id="pfcP1Name">—</div></div>
+      <div class="game-player" id="pfcP2"><span class="gp-sym">🔴</span><div class="gp-name" id="pfcP2Name">En attente…</div></div>
+    </div>
+    <div class="pfc-round" id="pfcRound">Meilleur de 5 · Manche 1</div>
+    <div class="pfc-score">
+      <div class="pfc-score-box" id="pfcSc1"><div class="sc-val" id="pfcSc1Val">0</div><div class="sc-name" id="pfcSc1Name">—</div></div>
+      <div class="pfc-score-box" id="pfcSc2"><div class="sc-val" id="pfcSc2Val">0</div><div class="sc-name" id="pfcSc2Name">—</div></div>
+    </div>
+    <!-- Résultat manche -->
+    <div class="pfc-result" id="pfcResult" style="display:none">
+      <div class="pfc-side"><div class="icon" id="pfcMyIcon">—</div><div class="name" id="pfcMyName">Toi</div></div>
+      <div class="pfc-vs" id="pfcResultTxt">VS</div>
+      <div class="pfc-side"><div class="icon" id="pfcTheirIcon">—</div><div class="name" id="pfcTheirName">Eux</div></div>
+    </div>
+    <div class="ttt-status" id="pfcStatus">Choisis ton signe !</div>
+    <!-- Boutons choix -->
+    <div class="pfc-choices" id="pfcChoices">
+      <button class="pfc-btn" onclick="pfcPlay('pierre')" title="Pierre">🪨</button>
+      <button class="pfc-btn" onclick="pfcPlay('feuille')" title="Feuille">📄</button>
+      <button class="pfc-btn" onclick="pfcPlay('ciseaux')" title="Ciseaux">✂️</button>
+    </div>
+    <button class="game-reset" onclick="pfcReset()">🔄 Nouvelle partie</button>
+    <div class="btns" style="margin-top:0.3rem"><button class="sec" onclick="hide('modalPFC');show('modalJeux')">← Retour</button></div>
+  </div>
+</div>
+
+
+
+<!-- MODAL POI ADMIN -->
+<div class="overlay" id="modalPoiAdmin" style="display:none;align-items:flex-start;padding-top:1rem;">
+  <div class="box" style="max-width:360px;width:100%">
+    <h2>📍 Ajouter un point</h2>
+
+    <!-- Choix emoji -->
+    <div style="font-size:0.52rem;color:#555;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:0.3rem;">Icône</div>
+    <div class="poi-emoji-grid" id="poiEmojiGrid">
+      <div class="poi-emoji-btn selected" onclick="selectPoiEmoji(this,'🍽')">🍽</div>
+      <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'🥐')">🥐</div>
+      <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'🛒')">🛒</div>
+      <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'⛽')">⛽</div>
+      <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'🚻')">🚻</div>
+      <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'💊')">💊</div>
+      <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'🌲')">🌲</div>
+      <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'🏖')">🏖</div>
+      <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'🏛')">🏛</div>
+      <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'⛺')">⛺</div>
+      <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'🚌')">🚌</div>
+      <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'💧')">💧</div>
+      <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'⚠️')">⚠️</div>
+      <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'⭐')">⭐</div>
+      <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'📸')">📸</div>
+      <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'🎯')">🎯</div>
+      <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'🅿')">🅿</div>
+      <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'🏪')">🏪</div>
+    </div>
+
+    <!-- Nom -->
+    <div style="font-size:0.52rem;color:#555;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:0.3rem;">Nom du point</div>
+    <input type="text" id="poiName" placeholder="Ex: Boulangerie du Cap" maxlength="40"
+      style="width:100%;padding:0.5rem 0.7rem;background:#111;border:1px solid #2a2a2a;border-radius:4px;color:#fff;font-size:0.78rem;font-family:inherit;margin-bottom:0.5rem;"/>
+
+    <!-- Description optionnelle -->
+    <div style="font-size:0.52rem;color:#555;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:0.3rem;">Description (optionnel)</div>
+    <input type="text" id="poiDesc" placeholder="Ex: Ouvert jusqu'à 19h" maxlength="60"
+      style="width:100%;padding:0.5rem 0.7rem;background:#111;border:1px solid #2a2a2a;border-radius:4px;color:#fff;font-size:0.78rem;font-family:inherit;margin-bottom:0.5rem;"/>
+
+    <!-- Position -->
+    <div style="font-size:0.52rem;color:#555;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:0.3rem;">Position</div>
+    <div style="display:flex;gap:0.4rem;margin-bottom:0.5rem;">
+      <button onclick="useMyPosition()" style="flex:1;padding:0.45rem;background:#1a3a1a;border:1px solid #2a5a2a;border-radius:4px;color:#00c875;font-size:0.6rem;font-weight:700;cursor:pointer;">📍 Ma position GPS</button>
+      <button onclick="useMapCenter()" style="flex:1;padding:0.45rem;background:#1a1a3a;border:1px solid #2a2a5a;border-radius:4px;color:#6699ff;font-size:0.6rem;font-weight:700;cursor:pointer;">🗺 Centre de la carte</button>
+    </div>
+    <div id="poiPosLabel" style="font-size:0.55rem;color:#555;text-align:center;margin-bottom:0.5rem;">— Position non sélectionnée —</div>
+
+    <div class="btns">
+      <button onclick="savePOI()" style="background:#e85d26;">✓ Ajouter sur la carte</button>
+      <button class="sec" onclick="hide('modalPoiAdmin')">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL LISTE POI ADMIN -->
+<div class="overlay" id="modalPoiList" style="display:none;align-items:flex-start;padding-top:1rem;">
+  <div class="box" style="max-width:360px;width:100%">
+    <h2>📍 Points d'intérêt</h2>
+    <div id="poiListAdmin" style="max-height:55dvh;overflow-y:auto;margin-bottom:0.5rem;">
+      <div style="font-size:0.6rem;color:#555;font-style:italic">Aucun point ajouté.</div>
+    </div>
+    <div class="btns">
+      <button onclick="hide('modalPoiList');show('modalPoiAdmin')" style="background:#e85d26;">+ Nouveau point</button>
+      <button class="sec" onclick="hide('modalPoiList')">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-title">Côte d'Opale</div>
+  <div class="topbar-right">
+    <div class="pill" onclick="toggleMarkers()" title="Afficher/masquer">👥 <b id="usersCount">0</b> <span id="markersEye">👁</span></div>
+    <button class="btn-name" id="btnName" onclick="openRename()">✎ Prénom</button>
+    <button class="admin-btn" id="adminBtn" style="display:none" onclick="show('adminPanel')">⚙</button>
+  </div>
+</div>
+
+<!-- MÉTÉO BAR -->
+<div class="meteo-bar" id="meteoBar">
+  <span class="meteo-loading">Chargement météo…</span>
+</div>
+
+<!-- MAP -->
+<div id="map" style="position:relative"></div>
+
+<!-- STATUS BAR (chrono parcours) -->
+<div class="status-bar" id="statusBar">
+  <div class="sb-item"><div class="sb-val" id="sbChrono">00:00:00</div><div class="sb-lbl">Chrono</div></div>
+  <div class="sb-sep">|</div>
+  <div class="sb-item"><div class="sb-val" id="sbDist">0.0 km</div><div class="sb-lbl">Parcourus</div></div>
+  <div class="sb-sep">|</div>
+  <div class="sb-item"><div class="sb-val" id="sbVit">— km/h</div><div class="sb-lbl">Vitesse</div></div>
+  <div class="sb-sep">|</div>
+  <div class="sb-item"><div class="sb-val" id="sbETA">--:--</div><div class="sb-lbl">ETA</div></div>
+</div>
+
+<!-- PAUSE BAR -->
+<div class="pause-bar" id="pauseBar">
+  <div class="pause-info">
+    <div class="pause-icon">⏸</div>
+    <div class="pause-txt">
+      <div class="pause-title">En pause · <span id="pauseTimer">00:00</span></div>
+      <div class="pause-time" id="pauseLocation">Position sauvegardée</div>
+    </div>
+  </div>
+  <button class="pause-resume" onclick="resumeGPS()">▶ Reprendre</button>
+</div>
+
+<!-- PANEL BAS -->
+<div class="panel">
+
+  <!-- Ligne 1 : PAS | Batterie | Jour -->
+  <div class="panel-top-row" style="display:flex;flex-direction:row;align-items:center;gap:0.6rem;margin-bottom:0.38rem;padding-bottom:0.38rem;border-bottom:1px solid #1a1a1a;">
+    <div class="pt-item" style="display:flex;flex-direction:row;align-items:center;gap:0.28rem;flex-shrink:0;">
+      <div class="pt-icon">👟</div>
+      <div class="pt-info">
+        <div class="pt-val" id="hbSteps">—</div>
+        <div class="pt-lbl">Pas</div>
+      </div>
+    </div>
+    <div class="pt-sep">|</div>
+    <div class="pt-item" style="display:flex;flex-direction:row;align-items:center;gap:0.28rem;flex-shrink:0;">
+      <div class="pt-icon">🔋</div>
+      <div class="pt-info">
+        <div class="pt-val" id="hbBat">—</div>
+        <div class="pt-lbl">Batterie</div>
+      </div>
+    </div>
+    <div class="pt-sep">|</div>
+    <div class="pt-item" style="flex:2">
+      <div class="pt-info">
+        <div class="pt-val" id="panelDay" style="font-size:0.88rem;font-weight:900;">Jour —</div>
+        <div class="pt-lbl" id="hbUpdated">—</div>
+      </div>
+    </div>
+    <div class="dist-progress" style="position:absolute;bottom:0;left:0;right:0;height:2px;background:#1a1a1a;"><div class="dist-fill" id="distFill" style="width:0%"></div></div>
+  </div>
+
+  <!-- Ligne 2 : De XX xxhxx → à XX xxhxx -->
+  <div class="panel-route-row">
+    <span class="pr-lbl">De</span>
+    <span class="pr-val" id="pFrom">—</span>
+    <span class="pr-time" id="pFromTime">--:--</span>
+    <span class="pr-arrow">→</span>
+    <span class="pr-lbl">à</span>
+    <span class="pr-val" id="pTo">—</span>
+    <span class="pr-time green" id="pToTime">--:--</span>
+  </div>
+
+  <!-- Ligne 3 : Km du jour | Distance | Arrivée -->
+  <div class="stats">
+    <div class="stat"><div class="sv" id="sKm">—</div><div class="sl">km du jour</div></div>
+    <div class="stat"><div class="sv" id="sParc">0.0</div><div class="sl">km parcourus</div></div>
+    <div class="stat"><div class="sv" id="sDuree">—</div><div class="sl">durée prévue</div></div>
+    <div class="stat"><div class="sv" id="sETA2">—</div><div class="sl">arrivée estimée</div></div>
+  </div>
+
+</div>
+
+<!-- BARRE NAVIGATION -->
+<div class="navbar">
+  <div class="nav-item" onclick="show('modalJeux')">
+    <div class="nav-icon">🎮</div>
+    <div class="nav-lbl">Jeux</div>
+  </div>
+  <div class="nav-item" onclick="openHistory()">
+    <div class="nav-icon">🕐</div>
+    <div class="nav-lbl">Historique</div>
+  </div>
+  <div class="nav-item" onclick="show('modalLogements')">
+    <div class="nav-icon">🏠</div>
+    <div class="nav-lbl">Logements</div>
+  </div>
+  <div class="nav-item gps-item" id="gpsNavItem" onclick="toggleGPS()">
+    <div class="nav-icon" id="gpsBtn"></div>
+    <div class="nav-lbl" id="gpsNavLbl">GPS</div>
+  </div>
+  <div class="nav-item pause-item" id="pauseNavItem" onclick="togglePause()">
+    <div class="nav-icon">⏸</div>
+    <div class="nav-lbl">Pause</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══ FIREBASE ══
+const fbCfg={databaseURL:"https://parcours-54426-default-rtdb.europe-west1.firebasedatabase.app"};
+let db;
+try{firebase.initializeApp(fbCfg);db=firebase.database();}catch(e){}
+
+// ══ GPX TRACK (vrai parcours) ══
+const TRACK=[[51.03379,2.36038],[51.02788,2.35926],[51.02419,2.34738],[51.02175,2.33199],[51.0186,2.32451],[51.01623,2.3148],[51.01317,2.30586],[51.00976,2.28892],[51.00854,2.28178],[51.00391,2.26132],[51.00111,2.24803],[50.99793,2.23854],[50.99511,2.23366],[50.99142,2.22923],[50.98575,2.22221],[50.97864,2.21617],[50.97798,2.21016],[50.96829,2.21652],[50.96468,2.20054],[50.96006,2.19772],[50.95994,2.18646],[50.96401,2.18136],[50.96823,2.17584],[50.97284,2.16839],[50.96956,2.16321],[50.97375,2.14123],[50.97786,2.13353],[50.98209,2.12552],[50.98285,2.1212],[50.98624,2.11966],[50.99355,2.11847],[51.00574,2.10314],[51.00418,2.09513],[51.00383,2.08784],[51.00581,2.07945],[51.00678,2.07571],[51.00469,2.06906],[51.00162,2.06347],[50.99826,2.05533],[50.99795,2.05017],[50.99742,2.04376],[50.99714,2.03974],[50.99783,2.0334],[50.99601,2.02382],[50.99513,2.013],[50.99471,2.00393],[50.99318,1.99144],[50.99083,1.97667],[50.98771,1.96455],[50.98069,1.95945],[50.97482,1.94712],[50.96848,1.9427],[50.9601,1.9399],[50.95087,1.95413],[50.95342,1.95565],[50.95809,1.91694],[50.95885,1.90581],[50.96538,1.90393],[50.96338,1.88235],[50.96649,1.87291],[50.96469,1.86056],[50.96087,1.85073],[50.96546,1.84211],[50.96091,1.8185],[50.95837,1.8107],[50.95689,1.80362],[50.95703,1.79802],[50.95632,1.79241],[50.95546,1.78715],[50.95372,1.78122],[50.95337,1.77756],[50.95167,1.76946],[50.94207,1.74182],[50.93859,1.73182],[50.93565,1.72507],[50.9298,1.71613],[50.92498,1.71411],[50.92445,1.71144],[50.92286,1.70945],[50.92164,1.70752],[50.92053,1.7015],[50.91449,1.69229],[50.90724,1.68485],[50.89818,1.67389],[50.888,1.66078],[50.88264,1.64984],[50.87384,1.62799],[50.8719,1.61691],[50.8681,1.61366],[50.86247,1.60249],[50.85388,1.61004],[50.86364,1.59474],[50.8671,1.58898],[50.86917,1.58673],[50.87041,1.58323],[50.87061,1.58344],[50.86953,1.58628],[50.86785,1.58743],[50.86116,1.58521],[50.85793,1.57933],[50.8528,1.57909],[50.85036,1.58262],[50.8472,1.58455],[50.84389,1.58555],[50.83977,1.58725],[50.83618,1.58874],[50.82997,1.59035],[50.82728,1.59278],[50.82366,1.59127],[50.82,1.5942],[50.81029,1.5983],[50.80511,1.6124],[50.802,1.61454],[50.79293,1.61192],[50.79041,1.60902],[50.78911,1.60778],[50.78701,1.60528],[50.78396,1.60486],[50.77627,1.60696],[50.7708,1.60683],[50.76194,1.60625],[50.76018,1.60514],[50.75544,1.6018],[50.7507,1.59717],[50.74969,1.59618],[50.74637,1.59757],[50.74301,1.59624],[50.73481,1.59442]];
+
+const ETAPES=[
+  {jour:1,date:'8 mai', from:'Dunkerque',        to:'Marck',            km:29.5,fi:0,  ti:53},
+  {jour:2,date:'9 mai', from:'Marck',             to:'Audinghen',        km:32.0,fi:53, ti:90},
+  {jour:3,date:'10 mai',from:'Audinghen',          to:'Boulogne-sur-Mer', km:22.5,fi:96, ti:127},
+];
+
+const ADMINS=['lucas','benjamin'];
+let myName=localStorage.getItem('rando_name')||null;
+let myId=localStorage.getItem('rando_id')||('u_'+Math.random().toString(36).substr(2,8));
+localStorage.setItem('rando_id',myId);
+
+let map,watchId,isTracking=false,allMarkers={};
+let horaires={j1dep:'08:00',j1arr:'18:00',j2dep:'08:00',j2arr:'18:00',j3dep:'08:00',j3arr:'18:00'};
+let parcours={actif:false,jour:1,startTs:null,distKm:0};
+let selAdminDay=1, chronoTimer=null;
+let myLat=null, myLng=null, sessionDist=0, lastPos=null;
+// Lissage GPS — moyenne glissante sur les 4 dernières positions
+const GPS_SMOOTH=4;
+let gpsHistory=[];
+function smoothGPS(lat,lng,acc){
+  // Ignorer les positions trop imprécises (>50m)
+  if(acc>50) return {lat:myLat||lat, lng:myLng||lng};
+  gpsHistory.push({lat,lng});
+  if(gpsHistory.length>GPS_SMOOTH) gpsHistory.shift();
+  return {
+    lat: gpsHistory.reduce((s,p)=>s+p.lat,0)/gpsHistory.length,
+    lng: gpsHistory.reduce((s,p)=>s+p.lng,0)/gpsHistory.length
+  };
+}
+let trailPoints=[]; // Points sauvegardés toutes les 30 min
+let trailLine=null; // Ligne verte sur la carte
+let saveTimer=null; // Timer 30 min
+const SAVE_INTERVAL=30*60*1000; // 30 minutes
+let poiMarkers=[];
+let navActive=false;
+let isPaused=false;
+let pauseStartTs=null;
+let pauseTimer=null;
+let totalPausedMs=0; // Temps total en pause (exclu du chrono)
+let ecoMode=false;
+let lastBattery=null;
+
+// ══ UTILS ══
+function show(id){document.getElementById(id).style.display='flex';}
+function hide(id){document.getElementById(id).style.display='none';}
+let tt;
+function showToast(m){
+  const t=document.getElementById('toast');
+  t.textContent=m;t.classList.add('show');
+  clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),3000);
+}
+function haversine(a,b,c,d){
+  const R=6371000,dL=(c-a)*Math.PI/180,dl=(d-b)*Math.PI/180;
+  const x=Math.sin(dL/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dl/2)**2;
+  return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
+}
+function bearing(lat1,lng1,lat2,lng2){
+  const dL=(lng2-lng1)*Math.PI/180;
+  const la1=lat1*Math.PI/180,la2=lat2*Math.PI/180;
+  const y=Math.sin(dL)*Math.cos(la2);
+  const x=Math.cos(la1)*Math.sin(la2)-Math.sin(la1)*Math.cos(la2)*Math.cos(dL);
+  return (Math.atan2(y,x)*180/Math.PI+360)%360;
+}
+function bearingLabel(b){
+  const dirs=['N','NE','E','SE','S','SO','O','NO','N'];
+  return dirs[Math.round(b/45)];
+}
+
+// ══ MAP ══
+function initMap(){
+  delete L.Icon.Default.prototype._getIconUrl;
+  L.Icon.Default.mergeOptions({
+    iconUrl:'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+    iconRetinaUrl:'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+    shadowUrl:'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+  });
+  map=L.map('map',{zoomControl:true}).setView([50.88,1.98],9);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(map);
+  // Tracé par jour avec couleurs distinctes
+  const DAY_COLORS=['#3b9eff','#ff9f1c','#2ec4b6']; // J1=bleu J2=orange J3=turquoise
+  const DAY_SEGMENTS=[[0,53],[53,90],[90,127]];
+  let allBounds=[];
+  DAY_SEGMENTS.forEach(([start,end],i)=>{
+    const seg=TRACK.slice(start,end+1);
+    const pl=L.polyline(seg,{color:DAY_COLORS[i],weight:4,opacity:0.85}).addTo(map);
+    allBounds=allBounds.concat(seg);
+  });
+  map.fitBounds(L.latLngBounds(allBounds),{padding:[25,25]});
+
+  // Tracé parcouru (mis à jour dynamiquement)
+  window.doneLine=null;
+  window.donePoints=[];
+  svgDot(51.03379,2.36038,'#e85d26','Dunkerque — Départ J1');
+  svgDot(50.73481,1.59442,'#e85d26','Boulogne-sur-Mer — Arrivée J3');
+  svgHouse(50.9505,1.9533,'Nuit 1 — Marck','10 Allée des Cormorans, 62730 Marck');
+  svgHouse(50.8525,1.6095,'Nuit 2 — Audinghen','115 Rue du Bas, 62179 Audinghen');
+}
+function svgDot(lat,lng,color,lbl){
+  const ic=L.divIcon({className:'',html:'<svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5" fill="'+color+'" stroke="#fff" stroke-width="2.5"/></svg>',iconSize:[14,14],iconAnchor:[7,7]});
+  L.marker([lat,lng],{icon:ic}).addTo(map).bindPopup('<b>'+lbl+'</b>');
+}
+function svgHouse(lat,lng,lbl,adr){
+  const ic=L.divIcon({className:'',html:'<svg width="28" height="28" viewBox="0 0 28 28"><filter id="ds"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity=".7"/></filter><g filter="url(#ds)"><polygon points="14,3 25,13 22,13 22,24 17,24 17,17 11,17 11,24 6,24 6,13 3,13" fill="#fff" stroke="#1a1a1a" stroke-width="1"/></g></svg>',iconSize:[28,28],iconAnchor:[14,24]});
+  L.marker([lat,lng],{icon:ic,zIndexOffset:900}).addTo(map).bindPopup('<b>'+lbl+'</b><br><span style="color:#aaa;font-size:.6rem">'+adr+'</span>');
+}
+
+// ══ MÉTÉO (Open-Meteo — gratuit, sans clé) ══
+async function fetchMeteo(){
+  const bar=document.getElementById('meteoBar');
+  bar.innerHTML='<span class="meteo-loading">Chargement météo…</span>';
+  const lat=myLat||50.88, lng=myLng||1.95;
+  try{
+    // Météo + lever/coucher soleil en une seule requête
+    const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,wind_speed_10m,wind_direction_10m,precipitation,weather_code&daily=sunrise,sunset&wind_speed_unit=kmh&timezone=Europe%2FParis&forecast_days=1`;
+    const r=await fetch(url);
+    const d=await r.json();
+    const c=d.current;
+    const wIcon=weatherIcon(c.weather_code);
+    const windDir=bearingLabel(c.wind_direction_10m);
+
+    // Lever/coucher soleil
+    const sunrise=d.daily?.sunrise?.[0]?.split('T')[1]?.slice(0,5)||'--:--';
+    const sunset=d.daily?.sunset?.[0]?.split('T')[1]?.slice(0,5)||'--:--';
+
+    // Marées via l'API WorldTides (gratuite limitée) — fallback calcul simplifié
+    const tideHtml=await fetchTides(lat,lng);
+
+    bar.innerHTML=`
+      <div class="mb-item"><div class="mb-icon">${wIcon}</div><div><div class="mb-val">${c.temperature_2m}°C</div><div class="mb-lbl">Temp.</div></div></div>
+      <div class="mb-sep">|</div>
+      <div class="mb-item"><div class="mb-icon">💨</div><div><div class="mb-val">${Math.round(c.wind_speed_10m)} km/h ${windDir}</div><div class="mb-lbl">Vent</div></div></div>
+      <div class="mb-sep">|</div>
+      <div class="mb-item"><div class="mb-icon">🌧</div><div><div class="mb-val">${c.precipitation} mm</div><div class="mb-lbl">Pluie</div></div></div>
+      <div class="mb-sep">|</div>
+      <div class="mb-item"><div class="mb-icon">🌅</div><div><div class="mb-val">${sunrise}</div><div class="mb-lbl">Lever</div></div></div>
+      <div class="mb-sep">|</div>
+      <div class="mb-item"><div class="mb-icon">🌇</div><div><div class="mb-val">${sunset}</div><div class="mb-lbl">Coucher</div></div></div>
+      <div class="mb-sep">|</div>
+      ${tideHtml}
+      <div class="mb-sep">|</div>
+      <div class="mb-item"><div style="font-size:.45rem;color:#444">Côte d'Opale · Mis à jour</div></div>
+    `;
+    showToast('Météo mise à jour ✓');
+  }catch(e){
+    bar.innerHTML='<span class="meteo-loading" style="color:#c00">Erreur météo</span>';
+  }
+}
+
+async function fetchTides(lat,lng){
+  try{
+    // API Open-Meteo Marine pour les vagues/marées
+    const url=`https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lng}&hourly=sea_level_height_msl&timezone=Europe%2FParis&forecast_days=1`;
+    const r=await fetch(url);
+    const d=await r.json();
+    if(!d.hourly) throw new Error('no data');
+
+    const hours=d.hourly.time;
+    const levels=d.hourly.sea_level_height_msl;
+    const now=new Date();
+    const nowH=now.getHours();
+
+    // Trouver prochaine haute/basse mer
+    let tides=[];
+    for(let i=1;i<levels.length-1;i++){
+      const h=parseInt(hours[i].split('T')[1]);
+      if(levels[i]>levels[i-1]&&levels[i]>levels[i+1]){
+        tides.push({type:'haute',h,level:levels[i],label:hours[i].split('T')[1].slice(0,5)});
+      } else if(levels[i]<levels[i-1]&&levels[i]<levels[i+1]){
+        tides.push({type:'basse',h,level:levels[i],label:hours[i].split('T')[1].slice(0,5)});
+      }
+    }
+    // Prochaine marée
+    const next=tides.find(t=>t.h>=nowH)||tides[0];
+    if(!next) throw new Error('no tides');
+    const icon=next.type==='haute'?'🔼':'🔽';
+    const label=next.type==='haute'?'Pleine mer':'Basse mer';
+    return `<div class="mb-item"><div class="mb-icon">🌊</div><div><div class="mb-val">${icon} ${next.label}</div><div class="mb-lbl">${label}</div></div></div>`;
+  } catch(e){
+    // Fallback : calcul simplifié des marées (cycle ~12h25)
+    return getTidesFallback();
+  }
+}
+
+function getTidesFallback(){
+  // Marée de référence Cap Gris-Nez : haute mer ~ toutes les 12h25
+  // Référence connue : pleine mer à 06:15 le 8 mai 2025 environ
+  const REF=new Date('2025-05-08T06:15:00').getTime();
+  const CYCLE=12*60*60*1000+25*60*1000; // 12h25 en ms
+  const now=Date.now();
+  const elapsed=(now-REF)%CYCLE;
+  const nextHigh=new Date(now+(CYCLE-elapsed));
+  const nextLow=new Date(now+(CYCLE/2-elapsed+(elapsed>CYCLE/2?CYCLE:0)));
+  const fmt=d=>d.toLocaleTimeString('fr',{hour:'2-digit',minute:'2-digit'});
+  const isRising=elapsed<CYCLE/2;
+  const nextTime=isRising?fmt(nextHigh):fmt(nextLow);
+  const nextType=isRising?'Pleine mer':'Basse mer';
+  const icon=isRising?'🔼':'🔽';
+  const pct=Math.round((isRising?elapsed/(CYCLE/2):(elapsed-CYCLE/2)/(CYCLE/2))*100);
+  return `<div class="mb-item"><div class="mb-icon">🌊</div><div><div class="mb-val">${icon} ${nextTime}</div><div class="mb-lbl">${nextType} · ${pct}%</div></div></div>`;
+}
+
+function weatherIcon(code){
+  if(code===0)return'☀️';
+  if(code<=2)return'🌤';
+  if(code<=3)return'☁️';
+  if(code<=49)return'🌫';
+  if(code<=59)return'🌦';
+  if(code<=69)return'🌧';
+  if(code<=79)return'❄️';
+  if(code<=82)return'🌧';
+  if(code<=99)return'⛈';
+  return'🌡';
+}
+
+// ══ POI (Overpass API — OpenStreetMap) ══
+async function openPOI(type){
+  const icon=type==='restaurant'?'🍽':'🥐';
+  const label=type==='restaurant'?'Restaurants':'Boulangeries';
+  document.getElementById('poiTitle').textContent=icon+' '+label+' sur le tracé';
+  show('modalPOI');
+  document.getElementById('poiList').innerHTML='<div class="meteo-loading">Recherche en cours…</div>';
+
+  // Clear old POI markers
+  poiMarkers.forEach(m=>map.removeLayer(m));
+  poiMarkers=[];
+
+  // Bounding box du tracé + un peu de marge
+  const bbox='50.73,1.57,51.05,2.37';
+  const osmType=type==='bakery'?'shop=bakery':'amenity=restaurant|amenity=cafe';
+  const query=`[out:json][timeout:15];(node[${osmType==='shop=bakery'?'shop=bakery':'amenity~"restaurant|cafe"'}](${bbox}););out 30;`;
+
+  try{
+    const r=await fetch('https://overpass-api.de/api/interpreter',{
+      method:'POST',body:'data='+encodeURIComponent(query)
+    });
+    const d=await r.json();
+    const items=d.elements||[];
+
+    if(items.length===0){
+      document.getElementById('poiList').innerHTML='<div class="meteo-loading">Aucun résultat trouvé.</div>';
+      return;
+    }
+
+    // Trier par distance si position connue
+    const sorted=items.map(el=>{
+      const dist=myLat?haversine(myLat,myLng,el.lat,el.lon):null;
+      return{...el,dist};
+    }).sort((a,b)=>(a.dist||9e9)-(b.dist||9e9)).slice(0,15);
+
+    let html='';
+    sorted.forEach(el=>{
+      const name=el.tags?.name||'Sans nom';
+      const addr=[el.tags?.['addr:street'],el.tags?.['addr:city']].filter(Boolean).join(', ')||'';
+      const distStr=el.dist?el.dist<1000?Math.round(el.dist)+' m':(el.dist/1000).toFixed(1)+' km':'—';
+      html+=`<div class="poi-item"><div class="poi-name">${icon} ${name}</div>${addr?`<div class="poi-addr">${addr}</div>`:''}<div class="poi-dist">📍 ${distStr}</div></div>`;
+
+      // Marqueur sur la carte
+      const ic=L.divIcon({className:'',
+        html:'<div style="font-size:16px;filter:drop-shadow(0 1px 3px rgba(0,0,0,.8))">'+(type==='bakery'?'🥐':'🍽')+'</div>',
+        iconSize:[20,20],iconAnchor:[10,10]});
+      const m=L.marker([el.lat,el.lon],{icon:ic}).addTo(map)
+        .bindPopup('<b>'+name+'</b>'+(addr?'<br><span style="color:#aaa;font-size:.6rem">'+addr+'</span>':''));
+      poiMarkers.push(m);
+    });
+
+    document.getElementById('poiList').innerHTML=html;
+    showToast(sorted.length+' '+label.toLowerCase()+' trouvé(e)s');
+  }catch(e){
+    document.getElementById('poiList').innerHTML='<div class="meteo-loading" style="color:#c00">Erreur réseau</div>';
+  }
+}
+
+// ══ TOGGLE MARKERS ══
+let markersVisible=true;
+function toggleMarkers(){
+  markersVisible=!markersVisible;
+  Object.values(allMarkers).forEach(m=>{
+    if(markersVisible) m.addTo(map);
+    else map.removeLayer(m);
+  });
+  document.getElementById('markersEye').textContent=markersVisible?'👁':'🙈';
+  showToast(markersVisible?'Personnes affichées':'Personnes masquées');
+}
+
+function updateNav(){}
+
+// ══ NOM ══
+function saveName(){
+  const v=document.getElementById('nameInput').value.trim();
+  if(!v)return;
+  myName=v;localStorage.setItem('rando_name',myName);
+  hide('modalName');
+  const bn=document.getElementById('btnName');if(bn)bn.textContent='✎ '+myName;
+  checkAdmin();initFirebase();showToast('Bienvenue '+myName+' !');
+}
+function openRename(){document.getElementById('nameInput').value=myName||'';show('modalName');}
+document.getElementById('nameInput').addEventListener('keydown',e=>{if(e.key==='Enter')saveName();});
+function checkAdmin(){
+  const ok=ADMINS.includes((myName||'').toLowerCase());
+  document.getElementById('adminBtn').style.display=ok?'block':'none';
+}
+
+window.addEventListener('load',()=>{
+  if(myName){
+    hide('modalName');
+    const bn=document.getElementById('btnName');if(bn)bn.textContent='✎ '+myName;
+    checkAdmin();initFirebase();
+  }
+  loadFirebaseData(); // Charge horaires, parcours, trail ET santé pour tout le monde
+  updatePanel();
+  fetchMeteo();
+  setInterval(fetchMeteo, 10*60*1000);
+});
+
+// ══ FIREBASE ══
+function initFirebase(){
+  if(!db)return;
+
+  // Nettoyer les utilisateurs fantômes (inactifs depuis plus de 5 min)
+  db.ref('users').once('value',snap=>{
+    const d=snap.val()||{};
+    const now=Date.now();
+    Object.keys(d).forEach(id=>{
+      const u=d[id];
+      // Si marqué online mais pas de timestamp récent (> 5 min) → offline
+      if(u.online && u.ts && (now - u.ts) > 5*60*1000){
+        db.ref('users/'+id).update({online:false});
+      }
+    });
+  });
+
+  // Écoute en temps réel — seulement les vrais online avec ts récent
+  db.ref('users').on('value',snap=>{
+    const d=snap.val()||{};
+    const now=Date.now();
+    const on=Object.keys(d).filter(id=>{
+      const u=d[id];
+      // Online = flag online ET timestamp < 3 min (sauf si c'est nous)
+      if(!u?.online) return false;
+      if(id===myId) return true;
+      return u.ts && (now - u.ts) < 3*60*1000;
+    });
+    document.getElementById('usersCount').textContent=on.length;
+    on.forEach(id=>{const u=d[id];if(u.lat&&u.lng)placeMarker(id,u,id===myId);});
+    // Retirer les marqueurs des déconnectés
+    Object.keys(allMarkers).forEach(id=>{
+      if(!on.includes(id)){map.removeLayer(allMarkers[id]);delete allMarkers[id];}
+    });
+  });
+
+  // Déconnexion propre — met online:false ET efface lat/lng
+  const myRef=db.ref('users/'+myId);
+  myRef.onDisconnect().update({online:false, lat:null, lng:null});
+
+  // Heartbeat toutes les 60s pour maintenir le timestamp à jour
+  myRef.update({name:myName, online:true, ts:Date.now()});
+  setInterval(()=>{
+    if(myName) myRef.update({ts:Date.now()});
+  }, 60000);
+
+  // Marquer offline quand la page se ferme
+  window.addEventListener('beforeunload',()=>{
+    myRef.update({online:false, lat:null, lng:null});
+  });
+  // Marquer offline quand page cachée (iPhone met en arrière-plan)
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden){
+      myRef.update({ts:Date.now()}); // Garde le ts à jour
+    }
+  });
+}
+
+function loadFirebaseData(){
+  if(!db)return;
+  db.ref('horaires').on('value',snap=>{
+    const d=snap.val();
+    if(d){horaires={...horaires,...d};
+      ['j1dep','j1arr','j2dep','j2arr','j3dep','j3arr'].forEach(k=>{const el=document.getElementById(k);if(el&&horaires[k])el.value=horaires[k];});
+      updatePanel();
+    }
+  });
+  db.ref('parcours').on('value',snap=>{
+    const d=snap.val();
+    if(d){parcours={...parcours,...d};onParcoursUpdate();}
+  });
+  loadTrailFromFirebase();
+  loadHealthFromFirebase();
+  initPOIsFromFirebase();
+}
+
+// ══ PARCOURS ══
+function selDay(n){
+  selAdminDay=n;[1,2,3].forEach(i=>document.getElementById('db'+i).classList.toggle('sel',i===n));
+  document.getElementById('launchLbl').textContent=n;
+}
+function lancerParcours(){
+  const data={actif:true,jour:selAdminDay,startTs:Date.now(),distKm:0,lancePar:myName};
+  if(db)db.ref('parcours').set(data);
+  hide('adminPanel');showToast('Jour '+selAdminDay+' lancé ! 🚀');
+}
+function stopParcours(){
+  if(db)db.ref('parcours').update({actif:false});
+  hide('adminPanel');showToast('Parcours arrêté.');
+}
+function onParcoursUpdate(){
+  const isAdmin=ADMINS.includes((myName||'').toLowerCase());
+  if(parcours.actif){
+    document.getElementById('statusBar').classList.add('active');
+
+    document.getElementById('stopBtn').style.display=isAdmin?'block':'none';
+    if(!chronoTimer){chronoTimer=setInterval(tickChrono,1000);tickChrono();}
+    updatePanel();
+  } else {
+    document.getElementById('statusBar').classList.remove('active');
+
+    document.getElementById('stopBtn').style.display='none';
+    clearInterval(chronoTimer);chronoTimer=null;
+  }
+}
+
+function tickChrono(){
+  if(!parcours.startTs)return;
+  const el=Math.max(0,(Date.now()-parcours.startTs)-totalPausedMs-(isPaused&&pauseStartTs?Date.now()-pauseStartTs:0));
+  const h=Math.floor(el/3600000),m=Math.floor((el%3600000)/60000),s=Math.floor((el%60000)/1000);
+  document.getElementById('sbChrono').textContent=h.toString().padStart(2,'0')+':'+m.toString().padStart(2,'0')+':'+s.toString().padStart(2,'0');
+
+  const distKm=parcours.distKm||0;
+  const elH=el/3600000;
+  const vit=elH>0.01?distKm/elH:0;
+  document.getElementById('sbDist').textContent=distKm.toFixed(2)+' km';
+  document.getElementById('sbVit').textContent=vit>0?vit.toFixed(1)+' km/h':'— km/h';
+
+  const e=ETAPES[(parcours.jour||1)-1];
+  const kmLeft=Math.max(0,e.km-distKm);
+  const pct=Math.min(100,distKm/e.km*100);
+  const df=document.getElementById('distFill');if(df)df.style.width=pct.toFixed(1)+'%';
+
+  if(vit>0.5&&kmLeft>0){
+    const eta=new Date(Date.now()+(kmLeft/vit)*3600000);
+    const etaStr=eta.toLocaleTimeString('fr',{hour:'2-digit',minute:'2-digit'});
+    document.getElementById('sbETA').textContent=etaStr;
+    const _eta2=document.getElementById('sETA2');if(_eta2)_eta2.textContent=etaStr;
+    const _pto=document.getElementById('pToTime');if(_pto)_pto.textContent=etaStr;
+  }
+}
+
+// ══ MARKERS ══
+const COLS=['#1b9fdb','#9b59b6','#e67e22','#27ae60','#f39c12','#1abc9c','#e74c3c','#3498db'];
+function colorFor(n){let h=0;for(let i=0;i<n.length;i++)h=n.charCodeAt(i)+((h<<5)-h);return COLS[Math.abs(h)%COLS.length];}
+function placeMarker(id,user,isMe){
+  const color=isMe?'#e00':colorFor(user.name||id);
+  const s=isMe?16:13;
+  const lbl=user.name||'?';
+  const ic=L.divIcon({className:'',
+    html:'<div style="position:relative;width:'+s+'px;height:'+s+'px">'
+        +'<svg width="'+s+'" height="'+s+'" viewBox="0 0 '+s+' '+s+'"><circle cx="'+(s/2)+'" cy="'+(s/2)+'" r="'+(s/2-1.5)+'" fill="'+color+'" stroke="#fff" stroke-width="2.5"/></svg>'
+        +'<div style="position:absolute;left:'+(s+4)+'px;top:50%;transform:translateY(-50%);background:'+color+';color:#fff;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:700;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.6)">'+lbl+(isMe?' 📍':'')+'</div>'
+        +'</div>',
+    iconSize:[s,s],iconAnchor:[s/2,s/2]});
+  if(allMarkers[id]){allMarkers[id].setLatLng([user.lat,user.lng]);allMarkers[id].setIcon(ic);}
+  else{
+    allMarkers[id]=L.marker([user.lat,user.lng],{icon:ic,zIndexOffset:isMe?1000:500})
+      .addTo(map).bindPopup('<b>'+lbl+'</b><br><span style="color:#888">'+user.lat?.toFixed(4)+'°N · '+user.lng?.toFixed(4)+'°E</span>');
+    if(isMe)map.flyTo([user.lat,user.lng],14,{duration:1.3});
+  }
+}
+
+// ══ GPS ══
+function toggleGPS(){isTracking?stopGPS():startGPS();}
+function startGPS(){
+  if(!navigator.geolocation){showToast('GPS non disponible');return;}
+  document.getElementById('gpsNavItem').className='nav-item gps-item wait';document.getElementById('gpsNavLbl').textContent='Recherche…';
+  if(watchId)navigator.geolocation.clearWatch(watchId);
+  sessionDist=0;lastPos=null;
+  watchId=navigator.geolocation.watchPosition(pos=>{
+    const _s1=smoothGPS(pos.coords.latitude,pos.coords.longitude,pos.coords.accuracy);myLat=_s1.lat;myLng=_s1.lng;
+    document.getElementById('gpsNavItem').className='nav-item gps-item on';document.getElementById('gpsNavLbl').textContent='Actif';
+    if(lastPos) sessionDist+=haversine(lastPos[0],lastPos[1],myLat,myLng)/1000;
+    lastPos=[myLat,myLng];
+    if(db&&parcours.actif) db.ref('parcours').update({distKm:sessionDist});
+    if(db&&myName) db.ref('users/'+myId).update({name:myName,lat:myLat,lng:myLng,online:true,ts:Date.now()});
+    document.getElementById('sParc').textContent=sessionDist.toFixed(2)+' km';
+    updateNav();
+    updateTrailLine();
+  },err=>{
+    const m={1:'GPS refusé.',2:'Position introuvable.',3:'Délai dépassé.'};
+    document.getElementById('gpsNavItem').className='nav-item gps-item';document.getElementById('gpsNavLbl').textContent='GPS';
+    showToast(m[err.code]||'Erreur GPS');
+  },{enableHighAccuracy:true,timeout:20000,maximumAge:3000});
+  isTracking=true;
+  document.getElementById('pauseNavItem').classList.add('show');
+
+  // Surveiller la batterie pour éco mode
+  if(navigator.getBattery){
+    navigator.getBattery().then(bat=>{
+      lastBattery=bat;
+      checkBattery(bat.level);
+      bat.addEventListener('levelchange',()=>checkBattery(bat.level));
+    });
+  }
+
+  // Sauvegarde immédiate au démarrage
+  setTimeout(()=>{ if(myLat) saveCheckpoint('depart'); }, 3000);
+
+  // Timer sauvegarde toutes les 30 min
+  if(saveTimer) clearInterval(saveTimer);
+  saveTimer=setInterval(()=>{
+    if(myLat&&isTracking) saveCheckpoint('auto');
+  }, SAVE_INTERVAL);
+}
+function stopGPS(){
+  if(watchId)navigator.geolocation.clearWatch(watchId);
+  if(saveTimer){clearInterval(saveTimer);saveTimer=null;}
+  // Sauvegarde finale
+  if(myLat) saveCheckpoint('arret');
+  isTracking=false;myLat=null;myLng=null;
+  document.getElementById('gpsNavItem').className='nav-item gps-item';document.getElementById('gpsNavLbl').textContent='GPS';
+  document.getElementById('pauseNavItem').classList.remove('show');
+  
+  document.getElementById('pauseBar').classList.remove('active');
+  if(pauseTimer){clearInterval(pauseTimer);pauseTimer=null;}
+  isPaused=false; pauseStartTs=null;
+  setEcoMode(false);
+  if(db)db.ref('users/'+myId).update({online:false, lat:null, lng:null});
+  if(allMarkers[myId]){map.removeLayer(allMarkers[myId]);delete allMarkers[myId];}
+  showToast('GPS arrêté');
+}
+
+// ══ PANEL ══
+function updatePanel(){
+  const jour=parcours.actif?parcours.jour:1;
+  const e=ETAPES[jour-1];
+  const dep=horaires['j'+jour+'dep']||'--:--';
+  const arr=horaires['j'+jour+'arr']||'--:--';
+  document.getElementById('panelDay').textContent='Jour '+jour+' · '+e.date+(parcours.actif?' 🟢':'');
+  document.getElementById('pFrom').textContent=e.from;
+  document.getElementById('pTo').textContent=e.to;
+  // Heure de départ réelle si parcours lancé
+  const depReel = parcours.actif&&parcours.startTs
+    ? new Date(parcours.startTs).toLocaleTimeString('fr',{hour:'2-digit',minute:'2-digit'})
+    : dep;
+  document.getElementById('pFromTime').textContent = depReel;
+  document.getElementById('sKm').textContent = e.km.toFixed(1)+' km';
+
+  // Durée prévue basée sur les horaires admin
+  const [dh,dm] = dep.split(':').map(Number);
+  const [ah,am] = arr.split(':').map(Number);
+  const minPrev = (ah*60+am)-(dh*60+dm);
+  document.getElementById('sDuree').textContent = minPrev>0
+    ? Math.floor(minPrev/60)+'h'+(minPrev%60).toString().padStart(2,'0') : '—';
+
+  // Heure arrivée : si parcours actif → calculée depuis départ réel + durée prévue
+  // Si pas encore lancé → heure prévue admin
+  if(parcours.actif && parcours.startTs && minPrev>0){
+    const etaTs = parcours.startTs + minPrev*60*1000;
+    const etaStr = new Date(etaTs).toLocaleTimeString('fr',{hour:'2-digit',minute:'2-digit'});
+    document.getElementById('pToTime').textContent = etaStr;
+    document.getElementById('sETA2').textContent = etaStr;
+  } else {
+    document.getElementById('pToTime').textContent = arr;
+  }
+}
+// ══ POI ADMIN — POINTS D'INTÉRÊT ══
+let selectedPoiEmoji = '🍽';
+let poiLat = null, poiLng = null;
+let customPoiMarkers = {};
+
+function selectPoiEmoji(el, emoji){
+  document.querySelectorAll('.poi-emoji-btn').forEach(b=>b.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedPoiEmoji = emoji;
+}
+
+function useMyPosition(){
+  if(!myLat||!myLng){ showToast('Active le GPS dabord !'); return; }
+  poiLat=myLat; poiLng=myLng;
+  document.getElementById('poiPosLabel').textContent=myLat.toFixed(5)+'°N · '+myLng.toFixed(5)+'°E';
+  document.getElementById('poiPosLabel').style.color='#00c875';
+}
+
+function useMapCenter(){
+  const c=map.getCenter();
+  poiLat=c.lat; poiLng=c.lng;
+  document.getElementById('poiPosLabel').textContent=c.lat.toFixed(5)+'°N · '+c.lng.toFixed(5)+'°E';
+  document.getElementById('poiPosLabel').style.color='#6699ff';
+}
+
+function savePOI(){
+  const name=document.getElementById('poiName').value.trim();
+  const desc=document.getElementById('poiDesc').value.trim();
+  if(!name){ showToast('Donne un nom au point !'); return; }
+  if(!poiLat||!poiLng){ showToast('Sélectionne une position !'); return; }
+  const poi={
+    id:'poi_'+Date.now(),
+    emoji:selectedPoiEmoji,
+    name, desc, lat:poiLat, lng:poiLng,
+    by:myName, ts:Date.now()
+  };
+  if(db) db.ref('pois/'+poi.id).set(poi);
+  hide('modalPoiAdmin');
+  // Reset
+  document.getElementById('poiName').value='';
+  document.getElementById('poiDesc').value='';
+  poiLat=null; poiLng=null;
+  document.getElementById('poiPosLabel').textContent='— Position non sélectionnée —';
+  document.getElementById('poiPosLabel').style.color='#555';
+  showToast(selectedPoiEmoji+' Point ajouté sur la carte !');
+}
+
+function deletePOI(id){
+  if(!db) return;
+  if(!confirm('Supprimer ce point ?')) return;
+  db.ref('pois/'+id).remove();
+  if(customPoiMarkers[id]){ map.removeLayer(customPoiMarkers[id]); delete customPoiMarkers[id]; }
+  loadPOIList();
+}
+
+function addPoiMarker(poi){
+  const ic=L.divIcon({
+    className:'',
+    html:'<div style="font-size:22px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.7));cursor:pointer">'+poi.emoji+'</div>',
+    iconSize:[26,26], iconAnchor:[13,20]
+  });
+  const m=L.marker([poi.lat,poi.lng],{icon:ic,zIndexOffset:800})
+    .addTo(map)
+    .bindPopup('<b>'+poi.emoji+' '+poi.name+'</b>'+(poi.desc?'<br><span style="color:#aaa;font-size:.6rem">'+poi.desc+'</span>':'')+'<br><span style="color:#555;font-size:.5rem">Ajouté par '+poi.by+'</span>');
+  customPoiMarkers[poi.id]=m;
+}
+
+function loadPOIList(){
+  const list=document.getElementById('poiListAdmin');
+  if(!list) return;
+  if(!db){ list.innerHTML='<div style="font-size:.6rem;color:#555">Firebase non connecté.</div>'; return; }
+  db.ref('pois').once('value',snap=>{
+    const d=snap.val()||{};
+    const pois=Object.values(d);
+    if(!pois.length){
+      list.innerHTML='<div style="font-size:.6rem;color:#555;font-style:italic">Aucun point ajouté.</div>';
+      return;
+    }
+    list.innerHTML=pois.map(p=>`
+      <div class="poi-list-item">
+        <div class="poi-list-icon">${p.emoji}</div>
+        <div class="poi-list-info">
+          <div class="poi-list-name">${p.name}</div>
+          ${p.desc?'<div class="poi-list-desc">'+p.desc+'</div>':''}
+        </div>
+        <button class="poi-list-del" onclick="deletePOI('${p.id}')">🗑</button>
+      </div>
+    `).join('');
+  });
+}
+
+function initPOIsFromFirebase(){
+  if(!db) return;
+  db.ref('pois').on('value',snap=>{
+    const d=snap.val()||{};
+    // Effacer anciens marqueurs
+    Object.values(customPoiMarkers).forEach(m=>map.removeLayer(m));
+    customPoiMarkers={};
+    // Redessiner tous les POIs
+    Object.values(d).forEach(poi=>addPoiMarker(poi));
+  });
+}
+
+// ══ ADMIN — GESTION POINTS ══
+function adminClearTrail(){
+  if(!db) return;
+  if(!confirm('Effacer TOUS les checkpoints GPS de tout le monde ?')) return;
+  db.ref('trail').remove();
+  // Effacer aussi les lignes sur la carte
+  trailPoints=[];
+  if(trailLine){map.removeLayer(trailLine);trailLine=null;}
+  if(window.doneLine){map.removeLayer(window.doneLine);window.doneLine=null;}
+  window.donePoints=[];
+  hide('adminPanel');
+  showToast('Checkpoints effacés ✓');
+}
+
+function adminClearUsers(){
+  if(!db) return;
+  if(!confirm('Déconnecter tous les utilisateurs inactifs ?')) return;
+  const now=Date.now();
+  db.ref('users').once('value',snap=>{
+    const d=snap.val()||{};
+    Object.keys(d).forEach(id=>{
+      // Déconnecter si inactif depuis plus de 5 min
+      if(d[id].online && d[id].ts && (now-d[id].ts)>5*60*1000){
+        db.ref('users/'+id).update({online:false,lat:null,lng:null});
+      }
+    });
+    hide('adminPanel');
+    showToast('Utilisateurs fantômes déconnectés ✓');
+  });
+}
+
+function saveHoraires(){
+  ['j1dep','j1arr','j2dep','j2arr','j3dep','j3arr'].forEach(k=>horaires[k]=document.getElementById(k).value);
+  if(db)db.ref('horaires').set(horaires);
+  hide('adminPanel');updatePanel();showToast('Horaires sauvegardés ✓');
+}
+
+// ══ PAUSE ══
+function togglePause(){
+  if(!isTracking) return;
+  isPaused ? resumeGPS() : pauseGPS();
+}
+
+function pauseGPS(){
+  if(!isTracking||isPaused) return;
+  isPaused=true;
+  pauseStartTs=Date.now();
+
+  // Sauvegarder la position de pause
+  if(myLat) saveCheckpoint('pause');
+
+  // Arrêter le watch GPS (économise la batterie)
+  if(watchId) navigator.geolocation.clearWatch(watchId);
+  watchId=null;
+
+  // Signaler la pause à Firebase
+  if(db&&myName) db.ref('users/'+myId).update({
+    name:myName, lat:myLat, lng:myLng,
+    online:true, paused:true, pauseTs:pauseStartTs, ts:Date.now()
+  });
+
+  // UI
+  
+  document.getElementById('gpsNavItem').className='nav-item gps-item wait';document.getElementById('gpsNavLbl').textContent='Recherche…';
+  document.getElementById('pauseBar').classList.add('active');
+  document.getElementById('pauseLocation').textContent=
+    myLat?myLat.toFixed(4)+'°N · '+myLng.toFixed(4)+'°E':'Position sauvegardée';
+
+  // Chrono pause
+  if(pauseTimer) clearInterval(pauseTimer);
+  pauseTimer=setInterval(()=>{
+    if(!isPaused){clearInterval(pauseTimer);return;}
+    const el=Date.now()-pauseStartTs;
+    const m=Math.floor(el/60000), s=Math.floor((el%60000)/1000);
+    document.getElementById('pauseTimer').textContent=
+      m.toString().padStart(2,'0')+':'+s.toString().padStart(2,'0');
+  },1000);
+
+  showToast('⏸ Pause — GPS suspendu');
+}
+
+function resumeGPS(){
+  if(!isPaused) return;
+  isPaused=false;
+
+  // Comptabiliser le temps de pause
+  if(pauseStartTs) totalPausedMs+=(Date.now()-pauseStartTs);
+  pauseStartTs=null;
+  if(pauseTimer){clearInterval(pauseTimer);pauseTimer=null;}
+
+  // Redémarrer le watch GPS
+  document.getElementById('gpsNavItem').className='nav-item gps-item wait';document.getElementById('gpsNavLbl').textContent='Recherche…';
+  
+  document.getElementById('pauseBar').classList.remove('active');
+
+  watchId=navigator.geolocation.watchPosition(pos=>{
+    const _s2=smoothGPS(pos.coords.latitude,pos.coords.longitude,pos.coords.accuracy);myLat=_s2.lat;myLng=_s2.lng;
+    document.getElementById('gpsNavItem').className='nav-item gps-item on';document.getElementById('gpsNavLbl').textContent='Actif';
+    if(lastPos) sessionDist+=haversine(lastPos[0],lastPos[1],myLat,myLng)/1000;
+    lastPos=[myLat,myLng];
+    if(db&&parcours.actif) db.ref('parcours').update({distKm:sessionDist});
+    if(db&&myName) db.ref('users/'+myId).update({name:myName,lat:myLat,lng:myLng,online:true,paused:false,ts:Date.now()});
+    document.getElementById('sParc').textContent=sessionDist.toFixed(2)+' km';
+    updateNav(); updateTrailLine();
+  },err=>{
+    document.getElementById('gpsNavItem').className='nav-item gps-item';document.getElementById('gpsNavLbl').textContent='GPS';
+  },{enableHighAccuracy:!ecoMode, timeout:20000, maximumAge:ecoMode?30000:3000});
+
+  showToast('▶ Reprise — GPS actif');
+}
+
+// ══ ÉCONOMISEUR GPS ══
+function checkBattery(level){
+  // Passe en éco si batterie < 20%
+  if(level<0.20 && !ecoMode){
+    setEcoMode(true);
+    showToast('🔋 Batterie faible — Mode éco activé');
+  } else if(level>=0.30 && ecoMode){
+    setEcoMode(false);
+    showToast('🔋 Batterie OK — Mode normal');
+  }
+}
+
+function setEcoMode(on){
+  ecoMode=on;
+  document.getElementById('ecoBadge').classList.toggle('active',on);
+  // Si GPS actif et pas en pause, redémarrer avec les bons paramètres
+  if(isTracking && !isPaused && watchId){
+    navigator.geolocation.clearWatch(watchId);
+    watchId=navigator.geolocation.watchPosition(pos=>{
+      myLat=pos.coords.latitude; myLng=pos.coords.longitude;
+      document.getElementById('gpsNavItem').className='nav-item gps-item on';document.getElementById('gpsNavLbl').textContent='Actif';
+      if(lastPos) sessionDist+=haversine(lastPos[0],lastPos[1],myLat,myLng)/1000;
+      lastPos=[myLat,myLng];
+      if(db&&parcours.actif) db.ref('parcours').update({distKm:sessionDist});
+      if(db&&myName) db.ref('users/'+myId).update({name:myName,lat:myLat,lng:myLng,online:true,ts:Date.now()});
+      document.getElementById('sParc').textContent=sessionDist.toFixed(2)+' km';
+      updateNav(); updateTrailLine();
+    },()=>{},{
+      enableHighAccuracy: !on,   // Éco = pas de haute précision (moins de batterie)
+      timeout: on?60000:20000,   // Éco = timeout plus long
+      maximumAge: on?30000:3000  // Éco = accepte positions plus vieilles
+    });
+  }
+}
+
+// ══ TIC-TAC-TOE MULTIJOUEUR ══
+let tttState=null, tttRole=null;
+
+function openTTT(){
+  hide('modalJeux'); show('modalTTT');
+  if(!db){tttOffline();return;}
+  db.ref('games/ttt').on('value',snap=>{
+    tttState=snap.val();
+    tttRender();
+  });
+  // Rejoindre la partie
+  db.ref('games/ttt').once('value',snap=>{
+    const s=snap.val();
+    if(!s||!s.p1){
+      // Premier joueur
+      tttRole='X';
+      db.ref('games/ttt').set({p1:myName,p2:null,board:Array(9).fill(''),turn:'X',winner:null});
+    } else if(!s.p2 && s.p1!==myName){
+      // Deuxième joueur
+      tttRole='O';
+      db.ref('games/ttt').update({p2:myName});
+    } else if(s.p1===myName){
+      tttRole='X';
+    } else if(s.p2===myName){
+      tttRole='O';
+    }
+  });
+}
+
+function tttRender(){
+  if(!tttState) return;
+  const s=tttState;
+  document.getElementById('tttP1Name').textContent=s.p1||'—';
+  document.getElementById('tttP2Name').textContent=s.p2||'En attente…';
+  document.getElementById('tttP1').className='game-player'+(s.turn==='X'?' active':'');
+  document.getElementById('tttP2').className='game-player'+(s.turn==='O'?' active':'');
+
+  const cells=document.querySelectorAll('.ttt-cell');
+  (s.board||Array(9).fill('')).forEach((v,i)=>{
+    cells[i].textContent=v==='X'?'❌':v==='O'?'⭕':'';
+    cells[i].className='ttt-cell'+(v?' taken '+v.toLowerCase():'');
+    cells[i].onclick=v?null:()=>tttPlay(i);
+  });
+
+  const st=document.getElementById('tttStatus');
+  if(s.winner==='draw'){st.textContent='🤝 Match nul !';st.className='ttt-status win';}
+  else if(s.winner){
+    const won=s.winner===tttRole;
+    st.textContent=(won?'🎉 Tu as gagné !':'😞 '+s.winner+' a gagné !');
+    st.className='ttt-status '+(won?'win':'lose');
+  } else if(!s.p2){
+    st.textContent="En attente d'un adversaire…";st.className='ttt-status';
+  } else {
+    const myTurn=s.turn===tttRole;
+    st.textContent=myTurn?'🎯 À ton tour !':"⏳ Tour de "+(s.turn==="X"?s.p1:s.p2)+"…";
+    st.className='ttt-status'+(myTurn?' win':'');
+  }
+}
+
+function tttPlay(i){
+  if(!tttState||!tttRole||!db) return;
+  const s=tttState;
+  if(s.winner||!s.p2) return;
+  if(s.turn!==tttRole) return;
+  if(s.board[i]) return;
+  const board=[...(s.board||Array(9).fill(''))];
+  board[i]=tttRole;
+  const winner=tttCheckWin(board,tttRole)?tttRole:board.every(c=>c)?'draw':null;
+  db.ref('games/ttt').update({board,turn:tttRole==='X'?'O':'X',winner});
+}
+
+function tttCheckWin(b,p){
+  const wins=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+  return wins.some(([a,c,d])=>b[a]===p&&b[c]===p&&b[d]===p);
+}
+
+function tttReset(){
+  if(!db) return;
+  db.ref('games/ttt').set({p1:myName,p2:null,board:Array(9).fill(''),turn:'X',winner:null});
+  tttRole='X';
+}
+
+function tttOffline(){
+  // Mode solo sans Firebase
+  tttRole='X';
+  tttState={p1:myName,p2:'Ordi',board:Array(9).fill(''),turn:'X',winner:null};
+  tttRender();
+}
+
+// ══ BATAILLE NAVALE MULTIJOUEUR ══
+const BN_SIZE=7;
+const BN_SHIPS=[3,2,2,1,1];
+const BN_NAMES=['Croiseur','Destroyer A','Destroyer B','Torpilleur A','Torpilleur B'];
+let bnState=null, bnRole=null;
+let bnMyShips=[]; // cellules occupées
+let bnPlaceIdx=0; // index bateau en cours
+let bnHorizontal=true; // orientation
+let bnHoverCell=-1;
+let bnPendingCells=[]; // cellules du bateau en cours de placement (avant validation)
+
+function openBN(){
+  hide('modalJeux'); show('modalBN');
+  bnMyShips=[]; bnPlaceIdx=0; bnHorizontal=true;
+  bnBuildGrids();
+  bnUpdatePreview();
+  if(!db){bnOffline();return;}
+  db.ref('games/bn').on('value',snap=>{
+    bnState=snap.val();
+    bnRender();
+  });
+  db.ref('games/bn').once('value',snap=>{
+    const s=snap.val();
+    if(!s||!s.p1){
+      bnRole='p1';
+      db.ref('games/bn').set({p1:myName,p2:null,p1ships:[],p2ships:[],
+        p1shots:[],p2shots:[],phase:'place',turn:'p1',winner:null,p1ready:false,p2ready:false});
+    } else if(!s.p2&&s.p1!==myName){
+      bnRole='p2';
+      db.ref('games/bn').update({p2:myName});
+    } else if(s.p1===myName){bnRole='p1';}
+    else if(s.p2===myName){bnRole='p2';}
+  });
+}
+
+function bnBuildGrids(){
+  // Grille placement (ma flotte)
+  const mg=document.getElementById('bnMyGrid');
+  mg.innerHTML='';
+  for(let i=0;i<BN_SIZE*BN_SIZE;i++){
+    const c=document.createElement('div');
+    c.className='bn-cell'; c.dataset.i=i;
+    c.onmouseenter=()=>bnHover(i);
+    c.onmouseleave=()=>bnHoverOut();
+    c.ontouchstart=(e)=>{e.preventDefault();bnHover(i);};
+    c.onclick=()=>bnPlaceShip(i);
+    mg.appendChild(c);
+  }
+  // Grille tir (ennemi)
+  const eg=document.getElementById('bnEnemyGrid');
+  eg.innerHTML='';
+  for(let i=0;i<BN_SIZE*BN_SIZE;i++){
+    const c=document.createElement('div');
+    c.className='bn-cell'; c.dataset.i=i;
+    c.onclick=()=>bnShoot(i);
+    eg.appendChild(c);
+  }
+}
+
+function bnUpdatePreview(){
+  if(bnPlaceIdx>=BN_SHIPS.length) return;
+  const len=BN_SHIPS[bnPlaceIdx];
+  const name=BN_NAMES[bnPlaceIdx];
+  document.getElementById('bnShipLabel').textContent=
+    (bnPlaceIdx+1)+'/'+BN_SHIPS.length+' · '+name+' ('+len+' cases)';
+  // Dessiner le bateau en preview
+  const prev=document.getElementById('bnPreviewShip');
+  prev.innerHTML='';
+  for(let i=0;i<len;i++){
+    const c=document.createElement('div');
+    c.className='bn-preview-cell';
+    c.style.width=bnHorizontal?'18px':'14px';
+    c.style.height=bnHorizontal?'14px':'18px';
+    prev.appendChild(c);
+  }
+  prev.style.flexDirection=bnHorizontal?'row':'column';
+  document.getElementById('bnPlaceArea').style.display='block';
+}
+
+function bnPivot(){
+  bnHorizontal=!bnHorizontal;
+  bnUpdatePreview();
+  if(bnHoverCell>=0) bnHover(bnHoverCell);
+}
+
+function bnGetCells(anchor, len, horiz){
+  // Retourne les cellules occupées par le bateau, ou null si invalide
+  const cells=[];
+  const row=Math.floor(anchor/BN_SIZE);
+  const col=anchor%BN_SIZE;
+  for(let i=0;i<len;i++){
+    const r=horiz?row:row+i;
+    const c=horiz?col+i:col;
+    if(r>=BN_SIZE||c>=BN_SIZE) return null;
+    const idx=r*BN_SIZE+c;
+    if(bnMyShips.includes(idx)) return null;
+    cells.push(idx);
+  }
+  return cells;
+}
+
+function bnHover(anchor){
+  bnHoverCell=anchor;
+  if(bnPlaceIdx>=BN_SHIPS.length) return;
+  const len=BN_SHIPS[bnPlaceIdx];
+  const cells=bnGetCells(anchor,len,bnHorizontal);
+  // Reset preview cells
+  document.querySelectorAll('#bnMyGrid .bn-cell').forEach((c,i)=>{
+    if(!bnMyShips.includes(i)) c.className='bn-cell';
+    else c.className='bn-cell ship';
+  });
+  if(cells){
+    bnPendingCells=cells;
+    cells.forEach(i=>{
+      const el=document.querySelector('#bnMyGrid .bn-cell[data-i="'+i+'"]');
+      if(el) el.className='bn-cell preview';
+    });
+    document.getElementById('bnValidateBtn').style.display='block';
+  } else {
+    bnPendingCells=[];
+    document.getElementById('bnValidateBtn').style.display='none';
+    // Montrer en rouge les cases invalides
+    const row=Math.floor(anchor/BN_SIZE), col=anchor%BN_SIZE;
+    for(let i=0;i<len;i++){
+      const r=bnHorizontal?row:row+i;
+      const c=bnHorizontal?col+i:col;
+      if(r<BN_SIZE&&c<BN_SIZE){
+        const el=document.querySelector('#bnMyGrid .bn-cell[data-i="'+(r*BN_SIZE+c)+'"]');
+        if(el) el.className='bn-cell preview-bad';
+      }
+    }
+  }
+}
+
+function bnHoverOut(){
+  bnHoverCell=-1;
+  // Si des cells pending existent, les garder en preview
+  document.querySelectorAll('#bnMyGrid .bn-cell').forEach((c,i)=>{
+    if(bnMyShips.includes(i)) c.className='bn-cell ship';
+    else if(bnPendingCells.includes(i)) c.className='bn-cell preview';
+    else c.className='bn-cell';
+  });
+  // IMPORTANT: ne jamais cacher le bouton si des pendingCells existent
+  // (l'utilisateur doit pouvoir bouger la souris vers le bouton)
+  if(!bnPendingCells.length){
+    document.getElementById('bnValidateBtn').style.display='none';
+  }
+  // Si pending, on NE TOUCHE PAS au bouton - il reste visible
+}
+
+function bnPlaceShip(anchor){
+  if(bnPlaceIdx>=BN_SHIPS.length) return;
+  if(!bnState) return;
+  if((bnRole==='p1'?bnState.p1ready:bnState.p2ready)) return;
+  const len=BN_SHIPS[bnPlaceIdx];
+  const cells=bnGetCells(anchor,len,bnHorizontal);
+  // Reset toutes les cellules preview
+  document.querySelectorAll('#bnMyGrid .bn-cell').forEach((c,i)=>{
+    c.className='bn-cell'+(bnMyShips.includes(i)?' ship':'');
+  });
+  if(cells){
+    bnPendingCells=cells;
+    cells.forEach(i=>{
+      const el=document.querySelector('#bnMyGrid .bn-cell[data-i="'+i+'"]');
+      if(el) el.className='bn-cell preview';
+    });
+    // Garder le bouton valider visible même sans hover
+    document.getElementById('bnValidateBtn').style.display='block';
+  } else {
+    bnPendingCells=[];
+    document.getElementById('bnValidateBtn').style.display='none';
+    // Afficher en rouge
+    const row=Math.floor(anchor/BN_SIZE), col=anchor%BN_SIZE;
+    for(let i=0;i<len;i++){
+      const r=bnHorizontal?row:row+i;
+      const c2=bnHorizontal?col+i:col;
+      if(r<BN_SIZE&&c2<BN_SIZE){
+        const el=document.querySelector('#bnMyGrid .bn-cell[data-i="'+(r*BN_SIZE+c2)+'"]');
+        if(el) el.className='bn-cell preview-bad';
+      }
+    }
+  }
+}
+
+function bnValidateShip(){
+  if(!bnPendingCells.length) return;
+  if(bnPlaceIdx>=BN_SHIPS.length) return;
+
+  // Confirmer le placement
+  bnPendingCells.forEach(i=>{
+    bnMyShips.push(i);
+    const el=document.querySelector('#bnMyGrid .bn-cell[data-i="'+i+'"]');
+    if(el) el.className='bn-cell ship';
+  });
+  bnPendingCells=[];
+  document.getElementById('bnValidateBtn').style.display='none';
+  bnPlaceIdx++;
+
+  if(bnPlaceIdx>=BN_SHIPS.length){
+    document.getElementById('bnPlaceArea').style.display='none';
+    document.getElementById('bnPhase').textContent='✅ Flotte placée — en attente…';
+    const upd={};
+    upd[bnRole+'ships']=bnMyShips;
+    upd[bnRole+'ready']=true;
+    if(db) db.ref('games/bn').update(upd).then(()=>{
+      db.ref('games/bn').once('value',snap=>{
+        const s=snap.val();
+        if(s&&s.p1ready&&s.p2ready) db.ref('games/bn').update({phase:'play'});
+      });
+    });
+  } else {
+    bnUpdatePreview();
+  }
+}
+
+function bnRender(){
+  if(!bnState) return;
+  const s=bnState;
+  document.getElementById('bnP1Name').textContent=s.p1||'—';
+  document.getElementById('bnP2Name').textContent=s.p2||'En attente…';
+  document.getElementById('bnP1').className='game-player'+(s.turn==='p1'?' active':'');
+  document.getElementById('bnP2').className='game-player'+(s.turn==='p2'?' active':'');
+
+  const myShips=(bnRole==='p1'?s.p1ships:s.p2ships)||[];
+  const enemyShips=(bnRole==='p1'?s.p2ships:s.p1ships)||[];
+  const myShots=(bnRole==='p1'?s.p1shots:s.p2shots)||[];
+  const enemyShots=(bnRole==='p1'?s.p2shots:s.p1shots)||[];
+
+  // Ma grille — afficher mes bateaux + les tirs reçus
+  document.querySelectorAll('#bnMyGrid .bn-cell').forEach((c,i)=>{
+    const hasShip=myShips.includes(i)||bnMyShips.includes(i);
+    const gotHit=enemyShots.includes(i);
+    c.className='bn-cell'+(hasShip?(gotHit?' ship hit':' ship'):(gotHit?' miss':''));
+  });
+  // Grille ennemie — mes tirs
+  document.querySelectorAll('#bnEnemyGrid .bn-cell').forEach((c,i)=>{
+    const shot=myShots.includes(i);
+    const hit=shot&&enemyShips.includes(i);
+    c.className='bn-cell'+(hit?' hit':shot?' miss':'');
+  });
+
+  const ph=document.getElementById('bnPhase');
+  if(s.winner){
+    ph.textContent=s.winner===bnRole?'🎉 Tu as gagné !':'😞 Perdu !';
+  } else if(!s.p2){
+    ph.textContent="En attente d'un adversaire…";
+    document.getElementById('bnPlaceArea').style.display=bnPlaceIdx<BN_SHIPS.length?'block':'none';
+  } else if(s.phase==='place'){
+    const myReady=(bnRole==='p1'?s.p1ready:s.p2ready);
+    if(myReady) ph.textContent='✅ Flotte placée — attente adversaire…';
+    else{
+      document.getElementById('bnPlaceArea').style.display='block';
+      bnUpdatePreview();
+    }
+  } else {
+    document.getElementById('bnPlaceArea').style.display='none';
+    ph.textContent=s.turn===bnRole?'🎯 À toi de tirer !':'⏳ Tour adversaire…';
+  }
+}
+
+function bnShoot(i){
+  if(!bnState||!bnRole||!db) return;
+  const s=bnState;
+  if(s.phase!=='play'||s.turn!==bnRole||s.winner) return;
+  const myShots=(bnRole==='p1'?s.p1shots:s.p2shots)||[];
+  if(myShots.includes(i)) return;
+  const enemyShips=(bnRole==='p1'?s.p2ships:s.p1ships)||[];
+  const newShots=[...myShots,i];
+  const upd={};
+  upd[bnRole+'shots']=newShots;
+  upd.turn=bnRole==='p1'?'p2':'p1';
+  if(enemyShips.every(c=>newShots.includes(c))) upd.winner=bnRole;
+  db.ref('games/bn').update(upd);
+}
+
+function bnReset(){
+  bnMyShips=[]; bnPlaceIdx=0; bnHorizontal=true; bnHoverCell=-1; bnPendingCells=[];
+  if(!db) return;
+  db.ref('games/bn').set({p1:myName,p2:null,p1ships:[],p2ships:[],
+    p1shots:[],p2shots:[],phase:'place',turn:'p1',winner:null,p1ready:false,p2ready:false});
+  bnRole='p1';
+  bnBuildGrids(); bnUpdatePreview();
+}
+
+function bnOffline(){
+  bnRole='p1';
+  bnState={p1:myName,p2:null,p1ships:[],p2ships:[],p1shots:[],p2shots:[],
+    phase:'place',turn:'p1',winner:null,p1ready:false,p2ready:false};
+  bnRender();
+}
+
+// ══ PUISSANCE 4 MULTIJOUEUR ══
+const P4_COLS=7, P4_ROWS=6;
+let p4State=null, p4Role=null;
+
+function openP4(){
+  hide('modalJeux'); show('modalP4');
+  p4BuildBoard();
+  if(!db){p4Offline();return;}
+  db.ref('games/p4').on('value',snap=>{
+    p4State=snap.val();
+    p4Render();
+  });
+  db.ref('games/p4').once('value',snap=>{
+    const s=snap.val();
+    if(!s||!s.p1){
+      p4Role='p1';
+      db.ref('games/p4').set({
+        p1:myName, p2:null,
+        board: Array(P4_COLS*P4_ROWS).fill(0),
+        turn:'p1', winner:null
+      });
+    } else if(!s.p2 && s.p1!==myName){
+      p4Role='p2';
+      db.ref('games/p4').update({p2:myName});
+    } else if(s.p1===myName){ p4Role='p1'; }
+    else if(s.p2===myName){ p4Role='p2'; }
+  });
+}
+
+function p4BuildBoard(){
+  const b=document.getElementById('p4Board');
+  b.innerHTML='';
+  for(let r=0;r<P4_ROWS;r++){
+    for(let c=0;c<P4_COLS;c++){
+      const cell=document.createElement('div');
+      cell.className='p4-cell';
+      cell.id='p4c'+(r*P4_COLS+c);
+      b.appendChild(cell);
+    }
+  }
+}
+
+function p4Render(){
+  if(!p4State) return;
+  const s=p4State;
+  document.getElementById('p4P1Name').textContent=s.p1||'—';
+  document.getElementById('p4P2Name').textContent=s.p2||'En attente…';
+  document.getElementById('p4P1').className='game-player'+(s.turn==='p1'?' active':'');
+  document.getElementById('p4P2').className='game-player'+(s.turn==='p2'?' active':'');
+
+  // Dessiner le plateau
+  const board=s.board||Array(P4_COLS*P4_ROWS).fill(0);
+  board.forEach((v,i)=>{
+    const cell=document.getElementById('p4c'+i);
+    if(cell) cell.className='p4-cell'+(v===1?' p1':v===2?' p2':'');
+  });
+
+  // Status
+  const st=document.getElementById('p4Status');
+  const myTurn=s.turn===p4Role;
+  if(s.winner==='draw'){ st.textContent='🤝 Match nul !'; st.className='ttt-status win'; }
+  else if(s.winner){
+    const won=s.winner===p4Role;
+    st.textContent=won?'🎉 Tu as gagné !':'😞 '+(s.winner==='p1'?s.p1:s.p2)+' a gagné !';
+    st.className='ttt-status '+(won?'win':'lose');
+  } else if(!s.p2){
+    st.textContent="En attente d'un adversaire…";
+    st.className='ttt-status';
+  } else {
+    st.textContent=myTurn?'🎯 À ton tour !':'⏳ Tour de '+(s.turn==='p1'?s.p1:s.p2)+'…';
+    st.className='ttt-status'+(myTurn?' win':'');
+  }
+
+  // Désactiver boutons si pas son tour
+  document.querySelectorAll('.p4-col-btn button').forEach(btn=>{
+    btn.disabled=!myTurn||!!s.winner||!s.p2;
+    btn.style.opacity=(!myTurn||!!s.winner||!s.p2)?'0.3':'1';
+  });
+}
+
+function p4Drop(col){
+  if(!p4State||!p4Role||!db) return;
+  const s=p4State;
+  if(s.turn!==p4Role||s.winner||!s.p2) return;
+
+  const board=[...(s.board||Array(P4_COLS*P4_ROWS).fill(0))];
+  const piece=p4Role==='p1'?1:2;
+
+  // Trouver la ligne la plus basse disponible dans cette colonne
+  let row=-1;
+  for(let r=P4_ROWS-1;r>=0;r--){
+    if(board[r*P4_COLS+col]===0){ row=r; break; }
+  }
+  if(row<0) return; // Colonne pleine
+
+  board[row*P4_COLS+col]=piece;
+  const winner=p4CheckWin(board,piece)?p4Role:board.every(c=>c)?'draw':null;
+  db.ref('games/p4').update({
+    board,
+    turn:p4Role==='p1'?'p2':'p1',
+    winner
+  });
+}
+
+function p4CheckWin(board, piece){
+  // Horizontal
+  for(let r=0;r<P4_ROWS;r++){
+    for(let c=0;c<=P4_COLS-4;c++){
+      if([0,1,2,3].every(i=>board[r*P4_COLS+c+i]===piece)) return true;
+    }
+  }
+  // Vertical
+  for(let r=0;r<=P4_ROWS-4;r++){
+    for(let c=0;c<P4_COLS;c++){
+      if([0,1,2,3].every(i=>board[(r+i)*P4_COLS+c]===piece)) return true;
+    }
+  }
+  // Diagonale descendante
+  for(let r=0;r<=P4_ROWS-4;r++){
+    for(let c=0;c<=P4_COLS-4;c++){
+      if([0,1,2,3].every(i=>board[(r+i)*P4_COLS+c+i]===piece)) return true;
+    }
+  }
+  // Diagonale /
+  for(let r=3;r<P4_ROWS;r++){
+    for(let c=0;c<=P4_COLS-4;c++){
+      if([0,1,2,3].every(i=>board[(r-i)*P4_COLS+c+i]===piece)) return true;
+    }
+  }
+  return false;
+}
+
+function p4Reset(){
+  if(!db) return;
+  db.ref('games/p4').set({
+    p1:myName, p2:null,
+    board:Array(P4_COLS*P4_ROWS).fill(0),
+    turn:'p1', winner:null
+  });
+  p4Role='p1';
+  p4BuildBoard();
+}
+
+function p4Offline(){
+  p4Role='p1';
+  p4State={p1:myName,p2:'Joueur 2',board:Array(P4_COLS*P4_ROWS).fill(0),turn:'p1',winner:null};
+  p4Render();
+}
+
+// ══ PIERRE FEUILLE CISEAUX MULTIJOUEUR ══
+const PFC_ICONS={pierre:'🪨',feuille:'📄',ciseaux:'✂️'};
+let pfcState=null, pfcRole=null;
+
+function openPFC(){
+  hide('modalJeux'); show('modalPFC');
+  if(!db){pfcOffline();return;}
+  db.ref('games/pfc').on('value',snap=>{
+    pfcState=snap.val();
+    pfcRender();
+  });
+  db.ref('games/pfc').once('value',snap=>{
+    const s=snap.val();
+    if(!s||!s.p1){
+      pfcRole='p1';
+      db.ref('games/pfc').set({
+        p1:myName,p2:null,
+        p1choice:null,p2choice:null,
+        p1score:0,p2score:0,
+        round:1,winner:null,roundWinner:null
+      });
+    } else if(!s.p2&&s.p1!==myName){
+      pfcRole='p2';
+      db.ref('games/pfc').update({p2:myName});
+    } else if(s.p1===myName){pfcRole='p1';}
+    else if(s.p2===myName){pfcRole='p2';}
+  });
+}
+
+function pfcPlay(choice){
+  if(!pfcState||!pfcRole||!db) return;
+  const s=pfcState;
+  if(s.winner) return;
+  if(!s.p2) return;
+  // Déjà joué ce tour
+  if(s[pfcRole+'choice']) return;
+
+  // Enregistrer le choix
+  const upd={};
+  upd[pfcRole+'choice']=choice;
+
+  // Highlight le bouton sélectionné
+  document.querySelectorAll('.pfc-btn').forEach(b=>{
+    b.classList.toggle('selected', b.title.toLowerCase()===choice);
+  });
+
+  db.ref('games/pfc').update(upd).then(()=>{
+    // Vérifier si les deux ont joué
+    db.ref('games/pfc').once('value',snap=>{
+      const s2=snap.val();
+      if(s2.p1choice&&s2.p2choice){
+        // Résoudre la manche
+        const result=pfcResolve(s2.p1choice,s2.p2choice);
+        const p1s=s2.p1score+(result==='p1'?1:0);
+        const p2s=s2.p2score+(result==='p2'?1:0);
+        const won=p1s>=3?'p1':p2s>=3?'p2':null;
+        db.ref('games/pfc').update({
+          p1score:p1s, p2score:p2s,
+          round:s2.round+1,
+          roundWinner:result,
+          lastP1:s2.p1choice, lastP2:s2.p2choice,
+          winner:won,
+          // Reset choix pour prochain tour après 2s
+        });
+        // Après 2.5s reset les choix pour la prochaine manche
+        if(!won){
+          setTimeout(()=>{
+            db.ref('games/pfc').update({p1choice:null,p2choice:null,roundWinner:null});
+          },2500);
+        }
+      }
+    });
+  });
+}
+
+function pfcResolve(c1,c2){
+  if(c1===c2) return 'draw';
+  if((c1==='pierre'&&c2==='ciseaux')||(c1==='feuille'&&c2==='pierre')||(c1==='ciseaux'&&c2==='feuille')) return 'p1';
+  return 'p2';
+}
+
+function pfcRender(){
+  if(!pfcState) return;
+  const s=pfcState;
+
+  document.getElementById('pfcP1Name').textContent=s.p1||'—';
+  document.getElementById('pfcP2Name').textContent=s.p2||'En attente…';
+  document.getElementById('pfcSc1Name').textContent=s.p1||'—';
+  document.getElementById('pfcSc2Name').textContent=s.p2||'—';
+  document.getElementById('pfcSc1Val').textContent=s.p1score||0;
+  document.getElementById('pfcSc2Val').textContent=s.p2score||0;
+  document.getElementById('pfcSc1').className='pfc-score-box'+(s.p1score>s.p2score?' winning':'');
+  document.getElementById('pfcSc2').className='pfc-score-box'+(s.p2score>s.p1score?' winning':'');
+  document.getElementById('pfcRound').textContent='Meilleur de 5 · Manche '+(s.round||1);
+
+  const myChoice=pfcRole==='p1'?s.p1choice:s.p2choice;
+  const theirChoice=pfcRole==='p1'?s.p2choice:s.p1choice;
+  const myScore=pfcRole==='p1'?s.p1score:s.p2score;
+  const theirScore=pfcRole==='p1'?s.p2score:s.p1score;
+  const st=document.getElementById('pfcStatus');
+  const res=document.getElementById('pfcResult');
+
+  // Highlight bouton sélectionné
+  document.querySelectorAll('.pfc-btn').forEach(b=>{
+    b.classList.toggle('selected', myChoice&&b.title.toLowerCase()===myChoice);
+  });
+
+  if(s.winner){
+    const won=s.winner===pfcRole;
+    st.textContent=won?'🏆 Tu as gagné la partie !':'😞 '+(s.winner==='p1'?s.p1:s.p2)+' a gagné !';
+    st.className='ttt-status '+(won?'win':'lose');
+  } else if(!s.p2){
+    st.textContent="En attente d'un adversaire…";
+    st.className='ttt-status';
+    res.style.display='none';
+  } else if(s.roundWinner&&s.lastP1){
+    // Afficher le résultat de la manche
+    res.style.display='flex';
+    const myLast=pfcRole==='p1'?s.lastP1:s.lastP2;
+    const theirLast=pfcRole==='p1'?s.lastP2:s.lastP1;
+    document.getElementById('pfcMyIcon').textContent=PFC_ICONS[myLast]||'?';
+    document.getElementById('pfcTheirIcon').textContent=PFC_ICONS[theirLast]||'?';
+    document.getElementById('pfcMyName').textContent='Toi';
+    document.getElementById('pfcTheirName').textContent=pfcRole==='p1'?s.p2:s.p1;
+    const rw=s.roundWinner===pfcRole?'win':s.roundWinner==='draw'?'':'lose';
+    const rwtxt=s.roundWinner===pfcRole?'Tu gagnes !':s.roundWinner==='draw'?'Égalité !':'Tu perds…';
+    document.getElementById('pfcResultTxt').textContent=rwtxt;
+    st.textContent=rwtxt;
+    st.className='ttt-status '+(rw==='win'?'win':rw==='lose'?'lose':'');
+  } else if(myChoice&&!theirChoice){
+    res.style.display='none';
+    st.textContent='✅ Choix validé — attente adversaire…';
+    st.className='ttt-status';
+  } else if(!myChoice){
+    res.style.display='none';
+    st.textContent='Choisis ton signe !';
+    st.className='ttt-status';
+  }
+
+  // Désactiver si déjà joué
+  document.querySelectorAll('.pfc-btn').forEach(b=>{
+    b.style.opacity=(myChoice||s.winner||!s.p2)?'0.5':'1';
+    b.style.pointerEvents=(myChoice||s.winner||!s.p2)?'none':'auto';
+  });
+}
+
+function pfcReset(){
+  if(!db) return;
+  db.ref('games/pfc').set({
+    p1:myName,p2:null,
+    p1choice:null,p2choice:null,
+    p1score:0,p2score:0,
+    round:1,winner:null,roundWinner:null
+  });
+  pfcRole='p1';
+}
+
+function pfcOffline(){
+  pfcRole='p1';
+  pfcState={p1:myName,p2:null,p1choice:null,p2choice:null,
+    p1score:0,p2score:0,round:1,winner:null,roundWinner:null};
+  pfcRender();
+}
+
+// ══ SANTÉ — LECTURE FIREBASE ══
+function loadHealthFromFirebase(){
+  if(!db) return;
+  // Écoute les données santé en temps réel
+  db.ref('health').on('value', snap=>{
+    const d=snap.val();
+    if(!d) return;
+
+    // Afficher la barre
+    // health now in panel
+    // Pas
+    const stepsVal=d.steps??d.Steps;
+    if(stepsVal!=null){
+      const _hs=document.getElementById('hbSteps');if(_hs)_hs.textContent=Number(stepsVal).toLocaleString('fr');
+    }
+    // Batterie iPhone
+    if(d.Battery!=null||d.battery!=null){
+      d.battery=d.Battery??d.battery;
+      const bat=d.battery>1?Math.round(d.battery):Math.round(d.battery*100);const _hb=document.getElementById('hbBat');if(_hb)_hb.textContent=bat+'%';
+    }
+    // Heure de mise à jour
+    if(d.updatedAt){
+      const ago=Math.floor((Date.now()-d.updatedAt)/60000);
+      document.getElementById('hbUpdated').textContent=
+        ago<1?"Mis à jour à l'instant":
+        ago<60?'Mis à jour il y a '+ago+' min':
+        'Mis à jour il y a '+Math.floor(ago/60)+'h';
+    }
+  });
+}
+
+// ══ MENU DROPDOWN ══
+function toggleMenu(){}
+function closeMenu(){}
+// ══ TRAIL — SAUVEGARDE & CHEMIN PARCOURU ══
+
+function saveCheckpoint(type){
+  if(!myLat||!myLng) return;
+  const pt={
+    lat:myLat, lng:myLng,
+    ts:Date.now(),
+    type:type, // 'auto', 'depart', 'arret'
+    dist:sessionDist
+  };
+  trailPoints.push(pt);
+  // Sauvegarder dans Firebase pour que tout le monde voit
+  if(db){
+    const key='trail/'+myId+'/'+pt.ts;
+    db.ref(key).set(pt);
+  }
+  // Marqueur sur la carte
+  addCheckpointMarker(pt);
+  updateTrailLine();
+  if(type==='auto') showToast('📍 Position sauvegardée — '+new Date(pt.ts).toLocaleTimeString('fr',{hour:'2-digit',minute:'2-digit'}));
+}
+
+function addCheckpointMarker(pt){
+  const ago=type=>type==='depart'?'Départ':type==='arret'?'Arrêt':type==='pause'?'Pause':'Checkpoint auto';
+  const color=pt.type==='depart'?'#e85d26':pt.type==='arret'?'#facc15':pt.type==='pause'?'#facc15':'#1b9fdb';
+  const ic=L.divIcon({className:'',
+    html:'<svg width="10" height="10" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4" fill="'+color+'" stroke="#fff" stroke-width="1.5"/></svg>',
+    iconSize:[10,10],iconAnchor:[5,5]
+  });
+  const time=new Date(pt.ts).toLocaleTimeString('fr',{hour:'2-digit',minute:'2-digit'});
+  L.marker([pt.lat,pt.lng],{icon:ic,zIndexOffset:800})
+    .addTo(map)
+    .bindPopup('<b>'+(pt.type==='depart'?'🚀 Départ':pt.type==='arret'?'🏁 Arrêt':'📍 Checkpoint')+'</b><br>'
+      +'<span style="color:#aaa">'+time+'</span><br>'
+      +'<span style="color:#555;font-size:.55rem">'+pt.lat.toFixed(5)+'°N · '+pt.lng.toFixed(5)+'°E</span><br>'
+      +'<span style="color:#e85d26;font-size:.55rem">'+pt.dist.toFixed(2)+' km parcourus</span>');
+}
+
+function updateTrailLine(){
+  // Dessine la ligne verte du chemin réellement parcouru
+  if(trailPoints.length < 2) return;
+  const coords=trailPoints.map(p=>[p.lat,p.lng]);
+  if(myLat) coords.push([myLat,myLng]); // Position actuelle
+  if(trailLine) map.removeLayer(trailLine);
+  trailLine=L.polyline(coords,{
+    color:'#00c875', weight:3, opacity:0.8,
+    dashArray:null
+  }).addTo(map);
+}
+
+function loadTrailFromFirebase(){
+  if(!db) return;
+  // Écoute le trail de tous les utilisateurs
+  db.ref('trail').on('value',snap=>{
+    const all=snap.val()||{};
+    // Pour chaque user, redessiner les checkpoints
+    Object.keys(all).forEach(uid=>{
+      const pts=Object.values(all[uid]||{}).sort((a,b)=>a.ts-b.ts);
+      if(uid===myId){
+        // Notre propre trail — reconstruire
+        trailPoints=pts;
+        pts.forEach(pt=>addCheckpointMarker(pt));
+        updateTrailLine();
+      } else {
+        // Trail des autres — juste les marqueurs
+        pts.forEach(pt=>addCheckpointMarker(pt));
+        // Ligne pour les autres
+        if(pts.length>=2){
+          const col=colorFor(uid);
+          L.polyline(pts.map(p=>[p.lat,p.lng]),{color:col,weight:2,opacity:0.5,dashArray:'4,4'}).addTo(map);
+        }
+      }
+    });
+  });
+}
+
+function openHistory(){
+  show('modalHistory');
+  if(!db){
+    document.getElementById('historyList').innerHTML='<div style="font-size:.58rem;color:#c00">Firebase non connecté.</div>';
+    return;
+  }
+  // Charger tous les trails
+  db.ref('trail').once('value',snap=>{
+    const all=snap.val()||{};
+    let html='';
+    const now=Date.now();
+
+    Object.keys(all).forEach(uid=>{
+      const pts=Object.values(all[uid]||{}).sort((a,b)=>b.ts-a.ts); // Plus récent en premier
+      pts.forEach(pt=>{
+        const diffMs=now-pt.ts;
+        const diffMin=Math.floor(diffMs/60000);
+        const agoStr=diffMin<1?"À l'instant":diffMin<60?'Il y a '+diffMin+' min':'Il y a '+Math.floor(diffMin/60)+'h'+(diffMin%60).toString().padStart(2,'0');
+        const time=new Date(pt.ts).toLocaleTimeString('fr',{hour:'2-digit',minute:'2-digit'});
+        const typeIcon=pt.type==='depart'?'🚀':pt.type==='arret'?'🏁':'📍';
+        const typeLabel=pt.type==='depart'?'Départ':pt.type==='arret'?'Arrêt':'Checkpoint';
+        html+=`<div class="trail-item">
+          <div class="trail-dot ${pt.type==='auto'?'auto':''}"></div>
+          <div class="trail-info">
+            <div class="trail-time">${typeIcon} ${typeLabel} · ${time}</div>
+            <div class="trail-ago">${agoStr} · ${pt.dist?.toFixed(2)||'0.00'} km parcourus</div>
+            <div class="trail-coords">${pt.lat?.toFixed(5)}°N · ${pt.lng?.toFixed(5)}°E</div>
+          </div>
+        </div>`;
+      });
+    });
+
+    document.getElementById('historyList').innerHTML=html||'<div style="font-size:.58rem;color:#555;font-style:italic">Aucune sauvegarde pour le moment.</div>';
+  });
+}
+
+function clearHistory(){
+  if(!db) return;
+  if(!confirm("Effacer tout l'historique ?")) return;
+  db.ref('trail').remove();
+  trailPoints=[];
+  if(trailLine){map.removeLayer(trailLine);trailLine=null;}
+  hide('modalHistory');
+  showToast('Historique effacé');
+}
+
+initMap();
+</script>
+</body>
+</html>
