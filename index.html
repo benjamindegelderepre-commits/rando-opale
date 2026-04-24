@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
@@ -66,7 +65,14 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;height:100dvh;display:flex;fl
 
 /* ── NAVIGATION ADMIN (boussole GPS) ── */
 
+
+
 .nav-compass svg{width:100%;height:100%;}
+
+
+
+
+
 
 /* ── STATUS BAR ── */
 .status-bar{background:#0d1f0d;border-top:1px solid #1a3a1a;padding:0.38rem 0.8rem;display:none;flex-shrink:0;align-items:center;gap:0.7rem;flex-wrap:wrap;overflow-x:auto;scrollbar-width:none;}
@@ -124,6 +130,7 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;height:100dvh;display:flex;fl
 
 /* NAV CARD */
 
+
 .aday{background:#111;border:1px solid #1e1e1e;border-radius:6px;padding:0.65rem;display:flex;flex-direction:column;gap:0.38rem;}
 .aday-title{font-size:0.52rem;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:#e85d26;}
 .trow{display:flex;gap:0.45rem;align-items:center;}
@@ -133,6 +140,10 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;height:100dvh;display:flex;fl
 .close-btn{padding:0.4rem;background:#111;color:#555;border:1px solid #222;border-radius:4px;font-size:0.6rem;cursor:pointer;}
 
 /* POI MODAL */
+
+
+
+
 
 /* LOGEMENTS */
 .log-item{background:#111;border:1px solid #2a2a2a;border-radius:6px;padding:0.75rem;display:flex;flex-direction:column;gap:0.38rem;}
@@ -235,7 +246,7 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;height:100dvh;display:flex;fl
 .bn-cell.preview-bad{background:#3a1a1a;border-color:#e85d26;opacity:0.7;}
 .bn-cell.hit{background:#c00;border-color:#e00;}
 .bn-cell.miss{background:#0d1820;}
-.bn-cell.miss::after{content:’•’;color:#2a4050;position:absolute;font-size:0.7rem;top:50%;left:50%;transform:translate(-50%,-50%);}
+.bn-cell.miss::after{content:'•';color:#2a4050;position:absolute;font-size:0.7rem;top:50%;left:50%;transform:translate(-50%,-50%);}
 .bn-phase{font-size:0.58rem;font-weight:800;text-align:center;color:#facc15;margin:0.15rem 0;min-height:1rem;}
 
 .game-reset{padding:0.4rem;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:4px;font-size:0.58rem;color:#888;cursor:pointer;width:100%;text-align:center;margin-top:0.3rem;}
@@ -277,12 +288,10 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;height:100dvh;display:flex;fl
 .trail-ago{font-size:0.52rem;color:#555;}
 .trail-coords{font-size:0.5rem;color:#444;font-family:monospace;}
 </style>
-
 </head>
 <body>
 
 <!-- MODAL NOM -->
-
 <div class="overlay" id="modalName">
   <div class="box">
     <h2>👋 Ton prénom</h2>
@@ -293,7 +302,6 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;height:100dvh;display:flex;fl
 </div>
 
 <!-- MODAL LOGEMENTS -->
-
 <div class="overlay" id="modalLogements" style="display:none">
   <div class="box">
     <h2>🏠 Logements</h2>
@@ -320,61 +328,56 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;height:100dvh;display:flex;fl
 </div>
 
 <!-- ADMIN PANEL -->
-
 <div class="adm-overlay" id="adminPanel" style="display:none">
   <div class="adm-box">
     <h2>⚙️ Admin</h2>
 
-```
-<div class="launch-card">
-  <h3>🚀 Lancer le parcours</h3>
-  <div class="day-select">
-    <div class="day-btn sel" id="db1" onclick="selDay(1)">J1 · 8 mai</div>
-    <div class="day-btn" id="db2" onclick="selDay(2)">J2 · 9 mai</div>
-    <div class="day-btn" id="db3" onclick="selDay(3)">J3 · 10 mai</div>
-  </div>
-  <button class="launch-btn" onclick="lancerParcours()">▶ Lancer Jour <span id="launchLbl">1</span></button>
-  <button class="stop-btn" id="stopBtn" onclick="stopParcours()" style="display:none">⏹ Arrêter</button>
-</div>
+    <div class="launch-card">
+      <h3>🚀 Lancer le parcours</h3>
+      <div class="day-select">
+        <div class="day-btn sel" id="db1" onclick="selDay(1)">J1 · 8 mai</div>
+        <div class="day-btn" id="db2" onclick="selDay(2)">J2 · 9 mai</div>
+        <div class="day-btn" id="db3" onclick="selDay(3)">J3 · 10 mai</div>
+      </div>
+      <button class="launch-btn" onclick="lancerParcours()">▶ Lancer Jour <span id="launchLbl">1</span></button>
+      <button class="stop-btn" id="stopBtn" onclick="stopParcours()" style="display:none">⏹ Arrêter</button>
+    </div>
 
 
-<div class="aday">
-  <div class="aday-title">Jour 1 · Dunkerque → Marck</div>
-  <div class="trow"><label>Départ</label><input type="time" id="j1dep" value="08:00"/></div>
-  <div class="trow"><label>Arrivée</label><input type="time" id="j1arr" value="18:00"/></div>
-</div>
-<div class="aday">
-  <div class="aday-title">Jour 2 · Marck → Audinghen</div>
-  <div class="trow"><label>Départ</label><input type="time" id="j2dep" value="08:00"/></div>
-  <div class="trow"><label>Arrivée</label><input type="time" id="j2arr" value="18:00"/></div>
-</div>
-<div class="aday">
-  <div class="aday-title">Jour 3 · Audinghen → Boulogne</div>
-  <div class="trow"><label>Départ</label><input type="time" id="j3dep" value="08:00"/></div>
-  <div class="trow"><label>Arrivée</label><input type="time" id="j3arr" value="18:00"/></div>
-</div>
-<button class="save-btn" onclick="saveHoraires()">💾 Sauvegarder</button>
+    <div class="aday">
+      <div class="aday-title">Jour 1 · Dunkerque → Marck</div>
+      <div class="trow"><label>Départ</label><input type="time" id="j1dep" value="08:00"/></div>
+      <div class="trow"><label>Arrivée</label><input type="time" id="j1arr" value="18:00"/></div>
+    </div>
+    <div class="aday">
+      <div class="aday-title">Jour 2 · Marck → Audinghen</div>
+      <div class="trow"><label>Départ</label><input type="time" id="j2dep" value="08:00"/></div>
+      <div class="trow"><label>Arrivée</label><input type="time" id="j2arr" value="18:00"/></div>
+    </div>
+    <div class="aday">
+      <div class="aday-title">Jour 3 · Audinghen → Boulogne</div>
+      <div class="trow"><label>Départ</label><input type="time" id="j3dep" value="08:00"/></div>
+      <div class="trow"><label>Arrivée</label><input type="time" id="j3arr" value="18:00"/></div>
+    </div>
+    <button class="save-btn" onclick="saveHoraires()">💾 Sauvegarder</button>
 
-<!-- Gestion des points -->
-<div class="aday">
-  <div class="aday-title">🗑 Gestion des points</div>
-  <button onclick="adminClearTrail()" style="width:100%;padding:0.45rem;background:#3a0000;border:1px solid #600;color:#f66;border-radius:4px;font-size:0.62rem;font-weight:700;cursor:pointer;margin-bottom:0.3rem;text-transform:uppercase;letter-spacing:0.08em;">🗑 Effacer tous les checkpoints</button>
-  <button onclick="adminClearUsers()" style="width:100%;padding:0.45rem;background:#1a1a00;border:1px solid #553300;color:#fa0;border-radius:4px;font-size:0.62rem;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:0.08em;">👥 Déconnecter les fantômes</button>
-</div>
+    <!-- Gestion des points -->
+    <div class="aday">
+      <div class="aday-title">🗑 Gestion des points</div>
+      <button onclick="adminClearTrail()" style="width:100%;padding:0.45rem;background:#3a0000;border:1px solid #600;color:#f66;border-radius:4px;font-size:0.62rem;font-weight:700;cursor:pointer;margin-bottom:0.3rem;text-transform:uppercase;letter-spacing:0.08em;">🗑 Effacer tous les checkpoints</button>
+      <button onclick="adminClearUsers()" style="width:100%;padding:0.45rem;background:#1a1a00;border:1px solid #553300;color:#fa0;border-radius:4px;font-size:0.62rem;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:0.08em;">👥 Déconnecter les fantômes</button>
+    </div>
 
-<div class="aday" style="background:#0d1a2a;border-color:#1a3a5a;">
-  <div class="aday-title" style="color:#6699ff;">📍 Points d'intérêt</div>
-  <button onclick="hide('adminPanel');show('modalPoiList');loadPOIList()" style="width:100%;padding:0.45rem;background:#1a1a3a;border:1px solid #2a2a5a;border-radius:4px;color:#6699ff;font-size:0.62rem;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:0.08em;">Gérer les points →</button>
-</div>
+    <div class="aday" style="background:#0d1a2a;border-color:#1a3a5a;">
+      <div class="aday-title" style="color:#6699ff;">📍 Points d'intérêt</div>
+      <button onclick="hide('adminPanel');show('modalPoiList');loadPOIList()" style="width:100%;padding:0.45rem;background:#1a1a3a;border:1px solid #2a2a5a;border-radius:4px;color:#6699ff;font-size:0.62rem;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:0.08em;">Gérer les points →</button>
+    </div>
 
-<button class="close-btn" onclick="hide('adminPanel')">Fermer</button>
-```
-
+    <button class="close-btn" onclick="hide('adminPanel')">Fermer</button>
   </div>
 </div>
 
 <!-- MODAL HISTORIQUE -->
-
 <div class="overlay" id="modalHistory" style="display:none">
   <div class="box" style="max-width:340px">
     <h2>🕐 Historique des positions</h2>
@@ -390,7 +393,6 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;height:100dvh;display:flex;fl
 </div>
 
 <!-- MODAL CHOIX JEUX -->
-
 <div class="overlay" id="modalJeux" style="display:none">
   <div class="box">
     <h2>🎮 Jeux</h2>
@@ -418,7 +420,6 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;height:100dvh;display:flex;fl
 </div>
 
 <!-- MODAL TIC-TAC-TOE -->
-
 <div class="overlay" id="modalTTT" style="display:none;align-items:flex-start;padding-top:1rem;">
   <div class="box" style="max-width:360px;width:100%">
     <h2>⭕ Tic-Tac-Toe</h2>
@@ -444,7 +445,6 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;height:100dvh;display:flex;fl
 </div>
 
 <!-- MODAL BATAILLE NAVALE -->
-
 <div class="overlay" id="modalBN" style="display:none;align-items:flex-start;padding-top:1rem;">
   <div class="box" style="max-width:400px;width:100%;">
     <h2>🚢 Bataille Navale</h2>
@@ -454,39 +454,35 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;height:100dvh;display:flex;fl
     </div>
     <div class="bn-phase" id="bnPhase">En attente d'un adversaire…</div>
 
-```
-<!-- Bateau à placer (phase placement) -->
-<div id="bnPlaceArea" style="display:none">
-  <div class="bn-preview">
-    <div>
-      <div class="bn-ship-label" id="bnShipLabel">Bateau 1 · 3 cases</div>
-      <div class="bn-preview-ship" id="bnPreviewShip"></div>
+    <!-- Bateau à placer (phase placement) -->
+    <div id="bnPlaceArea" style="display:none">
+      <div class="bn-preview">
+        <div>
+          <div class="bn-ship-label" id="bnShipLabel">Bateau 1 · 3 cases</div>
+          <div class="bn-preview-ship" id="bnPreviewShip"></div>
+        </div>
+        <button class="bn-pivot-btn" onclick="bnPivot()">&#8635; Pivoter</button>
+      </div>
+      <p style="font-size:0.52rem;color:#555;margin:0.3rem 0">Clique sur la grille pour positionner · Valide ensuite</p>
     </div>
-    <button class="bn-pivot-btn" onclick="bnPivot()">&#8635; Pivoter</button>
-  </div>
-  <p style="font-size:0.52rem;color:#555;margin:0.3rem 0">Clique sur la grille pour positionner · Valide ensuite</p>
-</div>
-<button id="bnValidateBtn" onclick="bnValidateShip()" style="display:none;width:100%;padding:0.65rem;background:#00c875;color:#000;border:none;border-radius:6px;font-weight:800;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;margin-bottom:0.4rem;box-shadow:0 2px 8px rgba(0,200,117,0.3);">&#10003; Valider ce bateau</button>
+    <button id="bnValidateBtn" onclick="bnValidateShip()" style="display:none;width:100%;padding:0.65rem;background:#00c875;color:#000;border:none;border-radius:6px;font-weight:800;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;margin-bottom:0.4rem;box-shadow:0 2px 8px rgba(0,200,117,0.3);">&#10003; Valider ce bateau</button>
 
-<div class="bn-boards">
-  <div class="bn-board-wrap">
-    <div class="bn-board-title">Ma flotte</div>
-    <div class="bn-grid" id="bnMyGrid"></div>
-  </div>
-  <div class="bn-board-wrap">
-    <div class="bn-board-title">Ennemi</div>
-    <div class="bn-grid" id="bnEnemyGrid"></div>
-  </div>
-</div>
-<button class="game-reset" onclick="bnReset()">🔄 Nouvelle partie</button>
-<div class="btns" style="margin-top:0.3rem"><button class="sec" onclick="hide('modalBN');show('modalJeux')">← Retour</button></div>
-```
-
+    <div class="bn-boards">
+      <div class="bn-board-wrap">
+        <div class="bn-board-title">Ma flotte</div>
+        <div class="bn-grid" id="bnMyGrid"></div>
+      </div>
+      <div class="bn-board-wrap">
+        <div class="bn-board-title">Ennemi</div>
+        <div class="bn-grid" id="bnEnemyGrid"></div>
+      </div>
+    </div>
+    <button class="game-reset" onclick="bnReset()">🔄 Nouvelle partie</button>
+    <div class="btns" style="margin-top:0.3rem"><button class="sec" onclick="hide('modalBN');show('modalJeux')">← Retour</button></div>
   </div>
 </div>
 
 <!-- MODAL PUISSANCE 4 -->
-
 <div class="overlay" id="modalP4" style="display:none;align-items:flex-start;padding-top:1rem;">
   <div class="box" style="max-width:380px;width:100%">
     <h2>🔴 Puissance 4</h2>
@@ -511,7 +507,6 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;height:100dvh;display:flex;fl
 </div>
 
 <!-- MODAL PIERRE FEUILLE CISEAUX -->
-
 <div class="overlay" id="modalPFC" style="display:none;align-items:flex-start;padding-top:1rem;">
   <div class="box" style="max-width:340px;width:100%">
     <h2>✂️ Pierre Feuille Ciseaux</h2>
@@ -542,65 +537,62 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;height:100dvh;display:flex;fl
   </div>
 </div>
 
-<!-- MODAL POI ADMIN -->
 
+
+<!-- MODAL POI ADMIN -->
 <div class="overlay" id="modalPoiAdmin" style="display:none;align-items:flex-start;padding-top:1rem;">
   <div class="box" style="max-width:360px;width:100%">
     <h2>📍 Ajouter un point</h2>
 
-```
-<!-- Choix emoji -->
-<div style="font-size:0.52rem;color:#555;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:0.3rem;">Icône</div>
-<div class="poi-emoji-grid" id="poiEmojiGrid">
-  <div class="poi-emoji-btn selected" onclick="selectPoiEmoji(this,'🍽')">🍽</div>
-  <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'🥐')">🥐</div>
-  <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'🛒')">🛒</div>
-  <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'⛽')">⛽</div>
-  <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'🚻')">🚻</div>
-  <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'💊')">💊</div>
-  <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'🌲')">🌲</div>
-  <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'🏖')">🏖</div>
-  <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'🏛')">🏛</div>
-  <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'⛺')">⛺</div>
-  <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'🚌')">🚌</div>
-  <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'💧')">💧</div>
-  <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'⚠️')">⚠️</div>
-  <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'⭐')">⭐</div>
-  <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'📸')">📸</div>
-  <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'🎯')">🎯</div>
-  <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'🅿')">🅿</div>
-  <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'🏪')">🏪</div>
-</div>
+    <!-- Choix emoji -->
+    <div style="font-size:0.52rem;color:#555;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:0.3rem;">Icône</div>
+    <div class="poi-emoji-grid" id="poiEmojiGrid">
+      <div class="poi-emoji-btn selected" onclick="selectPoiEmoji(this,'🍽')">🍽</div>
+      <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'🥐')">🥐</div>
+      <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'🛒')">🛒</div>
+      <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'⛽')">⛽</div>
+      <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'🚻')">🚻</div>
+      <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'💊')">💊</div>
+      <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'🌲')">🌲</div>
+      <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'🏖')">🏖</div>
+      <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'🏛')">🏛</div>
+      <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'⛺')">⛺</div>
+      <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'🚌')">🚌</div>
+      <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'💧')">💧</div>
+      <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'⚠️')">⚠️</div>
+      <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'⭐')">⭐</div>
+      <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'📸')">📸</div>
+      <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'🎯')">🎯</div>
+      <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'🅿')">🅿</div>
+      <div class="poi-emoji-btn" onclick="selectPoiEmoji(this,'🏪')">🏪</div>
+    </div>
 
-<!-- Nom -->
-<div style="font-size:0.52rem;color:#555;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:0.3rem;">Nom du point</div>
-<input type="text" id="poiName" placeholder="Ex: Boulangerie du Cap" maxlength="40"
-  style="width:100%;padding:0.5rem 0.7rem;background:#111;border:1px solid #2a2a2a;border-radius:4px;color:#fff;font-size:0.78rem;font-family:inherit;margin-bottom:0.5rem;"/>
+    <!-- Nom -->
+    <div style="font-size:0.52rem;color:#555;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:0.3rem;">Nom du point</div>
+    <input type="text" id="poiName" placeholder="Ex: Boulangerie du Cap" maxlength="40"
+      style="width:100%;padding:0.5rem 0.7rem;background:#111;border:1px solid #2a2a2a;border-radius:4px;color:#fff;font-size:0.78rem;font-family:inherit;margin-bottom:0.5rem;"/>
 
-<!-- Description optionnelle -->
-<div style="font-size:0.52rem;color:#555;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:0.3rem;">Description (optionnel)</div>
-<input type="text" id="poiDesc" placeholder="Ex: Ouvert jusqu'à 19h" maxlength="60"
-  style="width:100%;padding:0.5rem 0.7rem;background:#111;border:1px solid #2a2a2a;border-radius:4px;color:#fff;font-size:0.78rem;font-family:inherit;margin-bottom:0.5rem;"/>
+    <!-- Description optionnelle -->
+    <div style="font-size:0.52rem;color:#555;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:0.3rem;">Description (optionnel)</div>
+    <input type="text" id="poiDesc" placeholder="Ex: Ouvert jusqu'à 19h" maxlength="60"
+      style="width:100%;padding:0.5rem 0.7rem;background:#111;border:1px solid #2a2a2a;border-radius:4px;color:#fff;font-size:0.78rem;font-family:inherit;margin-bottom:0.5rem;"/>
 
-<!-- Position -->
-<div style="font-size:0.52rem;color:#555;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:0.3rem;">Position</div>
-<div style="display:flex;gap:0.4rem;margin-bottom:0.5rem;">
-  <button onclick="useMyPosition()" style="flex:1;padding:0.45rem;background:#1a3a1a;border:1px solid #2a5a2a;border-radius:4px;color:#00c875;font-size:0.6rem;font-weight:700;cursor:pointer;">📍 Ma position GPS</button>
-  <button onclick="useMapCenter()" style="flex:1;padding:0.45rem;background:#1a1a3a;border:1px solid #2a2a5a;border-radius:4px;color:#6699ff;font-size:0.6rem;font-weight:700;cursor:pointer;">🗺 Centre de la carte</button>
-</div>
-<div id="poiPosLabel" style="font-size:0.55rem;color:#555;text-align:center;margin-bottom:0.5rem;">— Position non sélectionnée —</div>
+    <!-- Position -->
+    <div style="font-size:0.52rem;color:#555;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:0.3rem;">Position</div>
+    <div style="display:flex;gap:0.4rem;margin-bottom:0.5rem;">
+      <button onclick="useMyPosition()" style="flex:1;padding:0.45rem;background:#1a3a1a;border:1px solid #2a5a2a;border-radius:4px;color:#00c875;font-size:0.6rem;font-weight:700;cursor:pointer;">📍 Ma position GPS</button>
+      <button onclick="useMapCenter()" style="flex:1;padding:0.45rem;background:#1a1a3a;border:1px solid #2a2a5a;border-radius:4px;color:#6699ff;font-size:0.6rem;font-weight:700;cursor:pointer;">🗺 Centre de la carte</button>
+    </div>
+    <div id="poiPosLabel" style="font-size:0.55rem;color:#555;text-align:center;margin-bottom:0.5rem;">— Position non sélectionnée —</div>
 
-<div class="btns">
-  <button onclick="savePOI()" style="background:#e85d26;">✓ Ajouter sur la carte</button>
-  <button class="sec" onclick="hide('modalPoiAdmin')">Annuler</button>
-</div>
-```
-
+    <div class="btns">
+      <button onclick="savePOI()" style="background:#e85d26;">✓ Ajouter sur la carte</button>
+      <button class="sec" onclick="hide('modalPoiAdmin')">Annuler</button>
+    </div>
   </div>
 </div>
 
 <!-- MODAL LISTE POI ADMIN -->
-
 <div class="overlay" id="modalPoiList" style="display:none;align-items:flex-start;padding-top:1rem;">
   <div class="box" style="max-width:360px;width:100%">
     <h2>📍 Points d'intérêt</h2>
@@ -615,7 +607,6 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;height:100dvh;display:flex;fl
 </div>
 
 <!-- TOPBAR -->
-
 <div class="topbar">
   <div class="topbar-title">Côte d'Opale</div>
   <div class="topbar-right">
@@ -626,17 +617,14 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;height:100dvh;display:flex;fl
 </div>
 
 <!-- MÉTÉO BAR -->
-
 <div class="meteo-bar" id="meteoBar">
   <span class="meteo-loading">Chargement météo…</span>
 </div>
 
 <!-- MAP -->
-
 <div id="map" style="position:relative"></div>
 
 <!-- STATUS BAR (chrono parcours) -->
-
 <div class="status-bar" id="statusBar">
   <div class="sb-item"><div class="sb-val" id="sbChrono">00:00:00</div><div class="sb-lbl">Chrono</div></div>
   <div class="sb-sep">|</div>
@@ -648,7 +636,6 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;height:100dvh;display:flex;fl
 </div>
 
 <!-- PAUSE BAR -->
-
 <div class="pause-bar" id="pauseBar">
   <div class="pause-info">
     <div class="pause-icon">⏸</div>
@@ -661,11 +648,9 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;height:100dvh;display:flex;fl
 </div>
 
 <!-- PANEL BAS -->
-
 <div class="panel">
 
   <!-- Ligne 1 : PAS | Batterie | Jour -->
-
   <div class="panel-top-row" style="display:flex;flex-direction:row;align-items:center;gap:0.6rem;margin-bottom:0.38rem;padding-bottom:0.38rem;border-bottom:1px solid #1a1a1a;">
     <div class="pt-item" style="display:flex;flex-direction:row;align-items:center;gap:0.28rem;flex-shrink:0;">
       <div class="pt-icon">👟</div>
@@ -685,7 +670,7 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;height:100dvh;display:flex;fl
     <div class="pt-sep">|</div>
     <div class="pt-item" style="flex:2">
       <div class="pt-info">
-        <div class="pt-val" id="panelDay" style="font-size:0.68rem">Jour —</div>
+        <div class="pt-val" id="panelDay" style="font-size:0.88rem;font-weight:900;">Jour —</div>
         <div class="pt-lbl" id="hbUpdated">—</div>
       </div>
     </div>
@@ -693,7 +678,6 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;height:100dvh;display:flex;fl
   </div>
 
   <!-- Ligne 2 : De XX xxhxx → à XX xxhxx -->
-
   <div class="panel-route-row">
     <span class="pr-lbl">De</span>
     <span class="pr-val" id="pFrom">—</span>
@@ -705,7 +689,6 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;height:100dvh;display:flex;fl
   </div>
 
   <!-- Ligne 3 : Km du jour | Distance | Arrivée -->
-
   <div class="stats">
     <div class="stat"><div class="sv" id="sKm">—</div><div class="sl">km du jour</div></div>
     <div class="stat"><div class="sv" id="sParc">0.0</div><div class="sl">km parcourus</div></div>
@@ -716,7 +699,6 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;height:100dvh;display:flex;fl
 </div>
 
 <!-- BARRE NAVIGATION -->
-
 <div class="navbar">
   <div class="nav-item" onclick="show('modalJeux')">
     <div class="nav-icon">🎮</div>
@@ -752,8 +734,8 @@ try{firebase.initializeApp(fbCfg);db=firebase.database();}catch(e){}
 const TRACK=[[51.03379,2.36038],[51.02788,2.35926],[51.02419,2.34738],[51.02175,2.33199],[51.0186,2.32451],[51.01623,2.3148],[51.01317,2.30586],[51.00976,2.28892],[51.00854,2.28178],[51.00391,2.26132],[51.00111,2.24803],[50.99793,2.23854],[50.99511,2.23366],[50.99142,2.22923],[50.98575,2.22221],[50.97864,2.21617],[50.97798,2.21016],[50.96829,2.21652],[50.96468,2.20054],[50.96006,2.19772],[50.95994,2.18646],[50.96401,2.18136],[50.96823,2.17584],[50.97284,2.16839],[50.96956,2.16321],[50.97375,2.14123],[50.97786,2.13353],[50.98209,2.12552],[50.98285,2.1212],[50.98624,2.11966],[50.99355,2.11847],[51.00574,2.10314],[51.00418,2.09513],[51.00383,2.08784],[51.00581,2.07945],[51.00678,2.07571],[51.00469,2.06906],[51.00162,2.06347],[50.99826,2.05533],[50.99795,2.05017],[50.99742,2.04376],[50.99714,2.03974],[50.99783,2.0334],[50.99601,2.02382],[50.99513,2.013],[50.99471,2.00393],[50.99318,1.99144],[50.99083,1.97667],[50.98771,1.96455],[50.98069,1.95945],[50.97482,1.94712],[50.96848,1.9427],[50.9601,1.9399],[50.95087,1.95413],[50.95342,1.95565],[50.95809,1.91694],[50.95885,1.90581],[50.96538,1.90393],[50.96338,1.88235],[50.96649,1.87291],[50.96469,1.86056],[50.96087,1.85073],[50.96546,1.84211],[50.96091,1.8185],[50.95837,1.8107],[50.95689,1.80362],[50.95703,1.79802],[50.95632,1.79241],[50.95546,1.78715],[50.95372,1.78122],[50.95337,1.77756],[50.95167,1.76946],[50.94207,1.74182],[50.93859,1.73182],[50.93565,1.72507],[50.9298,1.71613],[50.92498,1.71411],[50.92445,1.71144],[50.92286,1.70945],[50.92164,1.70752],[50.92053,1.7015],[50.91449,1.69229],[50.90724,1.68485],[50.89818,1.67389],[50.888,1.66078],[50.88264,1.64984],[50.87384,1.62799],[50.8719,1.61691],[50.8681,1.61366],[50.86247,1.60249],[50.85388,1.61004],[50.86364,1.59474],[50.8671,1.58898],[50.86917,1.58673],[50.87041,1.58323],[50.87061,1.58344],[50.86953,1.58628],[50.86785,1.58743],[50.86116,1.58521],[50.85793,1.57933],[50.8528,1.57909],[50.85036,1.58262],[50.8472,1.58455],[50.84389,1.58555],[50.83977,1.58725],[50.83618,1.58874],[50.82997,1.59035],[50.82728,1.59278],[50.82366,1.59127],[50.82,1.5942],[50.81029,1.5983],[50.80511,1.6124],[50.802,1.61454],[50.79293,1.61192],[50.79041,1.60902],[50.78911,1.60778],[50.78701,1.60528],[50.78396,1.60486],[50.77627,1.60696],[50.7708,1.60683],[50.76194,1.60625],[50.76018,1.60514],[50.75544,1.6018],[50.7507,1.59717],[50.74969,1.59618],[50.74637,1.59757],[50.74301,1.59624],[50.73481,1.59442]];
 
 const ETAPES=[
-  {jour:1,date:'8 mai', from:'Dunkerque',        to:'Marck',            km:29.5,fi:0,  ti:31},
-  {jour:2,date:'9 mai', from:'Marck',             to:'Audinghen',        km:32.0,fi:31, ti:96},
+  {jour:1,date:'8 mai', from:'Dunkerque',        to:'Marck',            km:29.5,fi:0,  ti:53},
+  {jour:2,date:'9 mai', from:'Marck',             to:'Audinghen',        km:32.0,fi:53, ti:90},
   {jour:3,date:'10 mai',from:'Audinghen',          to:'Boulogne-sur-Mer', km:22.5,fi:96, ti:127},
 ];
 
@@ -831,7 +813,7 @@ function initMap(){
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(map);
   // Tracé par jour avec couleurs distinctes
   const DAY_COLORS=['#3b9eff','#ff9f1c','#2ec4b6']; // J1=bleu J2=orange J3=turquoise
-  const DAY_SEGMENTS=[[0,31],[31,96],[96,127]];
+  const DAY_SEGMENTS=[[0,53],[53,90],[90,127]];
   let allBounds=[];
   DAY_SEGMENTS.forEach(([start,end],i)=>{
     const seg=TRACK.slice(start,end+1);
@@ -2413,6 +2395,5 @@ function clearHistory(){
 
 initMap();
 </script>
-
 </body>
 </html>
