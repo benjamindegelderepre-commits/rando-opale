@@ -1354,23 +1354,29 @@ function updatePanel(){
   document.getElementById('pFromTime').textContent = depReel;
   document.getElementById('sKm').textContent = e.km.toFixed(1)+' km';
 
-  // Durée prévue basée sur les horaires admin
-  const [dh,dm] = dep.split(':').map(Number);
-  const [ah,am] = arr.split(':').map(Number);
-  const minPrev = (ah*60+am)-(dh*60+dm);
-  document.getElementById('sDuree').textContent = minPrev>0
-    ? Math.floor(minPrev/60)+'h'+(minPrev%60).toString().padStart(2,'0') : '—';
+  // Durée : depuis horaires admin si définis, sinon estimée par km (3.5 km/h + pauses)
+  const [dh,dm] = (dep||'08:00').split(':').map(Number);
+  const [ah,am] = (arr||'18:00').split(':').map(Number);
+  let minPrev = (ah*60+am)-(dh*60+dm);
+  // Toujours recalculer depuis les km si horaires par défaut (08:00/18:00)
+  const isDefault=(dep==='08:00'&&arr==='18:00')||(dep==='--:--')||minPrev<=0;
+  if(isDefault) minPrev=Math.round((e.km/3.5)*60+30);
 
-  // Heure arrivée : si parcours actif → calculée depuis départ réel + durée prévue
-  // Si pas encore lancé → heure prévue admin
-  if(parcours.actif && parcours.startTs && minPrev>0){
-    const etaTs = parcours.startTs + minPrev*60*1000;
-    const etaStr = new Date(etaTs).toLocaleTimeString('fr',{hour:'2-digit',minute:'2-digit'});
-    document.getElementById('pToTime').textContent = etaStr;
-    document.getElementById('sETA2').textContent = etaStr;
+  document.getElementById('sDuree').textContent=
+    Math.floor(minPrev/60)+'h'+(minPrev%60).toString().padStart(2,'0');
+
+  // ETA : depuis heure réelle de départ si lancé, sinon depuis horaires admin
+  let etaStr;
+  if(parcours.actif && parcours.startTs){
+    etaStr=new Date(parcours.startTs+minPrev*60*1000).toLocaleTimeString('fr',{hour:'2-digit',minute:'2-digit'});
+  } else if(arr!=='--:--'){
+    etaStr=arr;
   } else {
-    document.getElementById('pToTime').textContent = arr;
+    const em=8*60+minPrev;
+    etaStr=Math.floor(em/60).toString().padStart(2,'0')+':'+(em%60).toString().padStart(2,'0');
   }
+  document.getElementById('pToTime').textContent=etaStr;
+  const _e2=document.getElementById('sETA2');if(_e2)_e2.textContent=etaStr;
 }
 // ══ POI ADMIN — POINTS D'INTÉRÊT ══
 let selectedPoiEmoji = '🍽';
