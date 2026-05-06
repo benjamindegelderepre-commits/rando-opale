@@ -264,6 +264,15 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;height:100dvh;display:flex;fl
 
 .game-reset{padding:0.4rem;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:4px;font-size:0.58rem;color:#888;cursor:pointer;width:100%;text-align:center;margin-top:0.3rem;}
 
+/* LOBBY */
+.lobby-list{display:flex;flex-direction:column;gap:0.4rem;margin:0.4rem 0;}
+.lobby-room{background:#111;border:1px solid #2a2a2a;border-radius:6px;padding:0.6rem 0.8rem;display:flex;align-items:center;justify-content:space-between;gap:0.5rem;}
+.lobby-room-info{display:flex;flex-direction:column;gap:0.1rem;}
+.lobby-room-name{font-size:0.68rem;font-weight:700;color:#fff;}
+.lobby-room-status{font-size:0.52rem;color:#555;}
+.lobby-join-btn{padding:0.35rem 0.8rem;background:#e85d26;color:#fff;border:none;border-radius:4px;font-size:0.58rem;font-weight:700;cursor:pointer;white-space:nowrap;}
+.lobby-create-btn{width:100%;padding:0.55rem;background:#1a3a1a;border:1px solid #2a5a2a;border-radius:4px;color:#00c875;font-size:0.65rem;font-weight:700;cursor:pointer;text-align:center;margin-top:0.3rem;}
+
 /* PIERRE FEUILLE CISEAUX */
 .pfc-choices{display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem;margin:0.6rem 0;}
 .pfc-btn{aspect-ratio:1;background:#111;border:2px solid #2a2a2a;border-radius:10px;font-size:2.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;-webkit-tap-highlight-color:transparent;}
@@ -438,19 +447,19 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;height:100dvh;display:flex;fl
     <h2>🎮 Jeux</h2>
     <p>Jouez ensemble le soir à l'hébergement !</p>
     <div class="jeux-menu">
-      <button class="jeux-btn" onclick="openTTT()">
+      <button class="jeux-btn" onclick="openLobby('TTT')">
         <div class="ji">⭕</div>
         <div class="jt"><div class="jn">Tic-Tac-Toe</div><div class="jd">2 joueurs · Tour par tour</div></div>
       </button>
-      <button class="jeux-btn" onclick="openBN()">
+      <button class="jeux-btn" onclick="openLobby('BN')">
         <div class="ji">🚢</div>
         <div class="jt"><div class="jn">Bataille Navale</div><div class="jd">2 joueurs · 7×7</div></div>
       </button>
-      <button class="jeux-btn" onclick="openP4()">
+      <button class="jeux-btn" onclick="openLobby('P4')">
         <div class="ji">🔴</div>
         <div class="jt"><div class="jn">Puissance 4</div><div class="jd">2 joueurs · 7×6</div></div>
       </button>
-      <button class="jeux-btn" onclick="openPFC()">
+      <button class="jeux-btn" onclick="openLobby('PFC')">
         <div class="ji">✂️</div>
         <div class="jt"><div class="jn">Pierre Feuille Ciseaux</div><div class="jd">2 joueurs · Meilleur de 5</div></div>
       </button>
@@ -642,6 +651,21 @@ body{font-family:'Helvetica Neue',Arial,sans-serif;height:100dvh;display:flex;fl
     <div class="btns">
       <button onclick="hide('modalPoiList');show('modalPoiAdmin')" style="background:#e85d26;">+ Nouveau point</button>
       <button class="sec" onclick="hide('modalPoiList')">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL LOBBY JEUX -->
+<div class="overlay" id="modalLobby" style="display:none;align-items:flex-start;padding-top:1rem;">
+  <div class="box" style="max-width:340px;width:100%">
+    <h2 id="lobbyTitle">🎮 Choisir une partie</h2>
+    <p style="font-size:0.58rem;color:#555;margin-top:-0.3rem">Crée une salle ou rejoins une partie existante</p>
+    <div class="lobby-list" id="lobbyList">
+      <div style="font-size:0.6rem;color:#555;font-style:italic;text-align:center;padding:0.5rem">Aucune partie en cours…</div>
+    </div>
+    <button class="lobby-create-btn" id="lobbyCreateBtn" onclick="createRoom()">+ Créer une nouvelle partie</button>
+    <div class="btns" style="margin-top:0.5rem">
+      <button class="sec" onclick="hide('modalLobby');show('modalJeux')">← Retour</button>
     </div>
   </div>
 </div>
@@ -1654,6 +1678,72 @@ function setEcoMode(on){
   }
 }
 
+// ══ LOBBY JEUX ══
+let currentGame = null;
+let lobbyListener = null;
+
+const GAME_NAMES = {TTT:'Tic-Tac-Toe', BN:'Bataille Navale', P4:'Puissance 4', PFC:'Pierre Feuille Ciseaux'};
+const GAME_ICONS = {TTT:'⭕', BN:'🚢', P4:'🔴', PFC:'✂️'};
+
+function openLobby(game){
+  currentGame = game;
+  hide('modalJeux');
+  document.getElementById('lobbyTitle').textContent = GAME_ICONS[game]+' '+GAME_NAMES[game];
+  document.getElementById('lobbyCreateBtn').textContent = '+ Créer une partie de '+GAME_NAMES[game];
+  show('modalLobby');
+  listenRooms(game);
+}
+
+function listenRooms(game){
+  if(lobbyListener && db) db.ref('lobbies/'+game).off();
+  if(!db) return;
+  db.ref('lobbies/'+game).on('value', snap=>{
+    const rooms = snap.val()||{};
+    const list = document.getElementById('lobbyList');
+    const available = Object.values(rooms).filter(r=>r.p1&&!r.p2&&r.p1!==myName);
+
+    if(!available.length){
+      list.innerHTML='<div style="font-size:.6rem;color:#555;font-style:italic;text-align:center;padding:.5rem">Aucune partie en attente…<br>Crée une partie !</div>';
+      return;
+    }
+    list.innerHTML = available.map(r=>`
+      <div class="lobby-room">
+        <div class="lobby-room-info">
+          <div class="lobby-room-name">${GAME_ICONS[game]} Partie de ${r.p1}</div>
+          <div class="lobby-room-status">En attente d'un adversaire…</div>
+        </div>
+        <button class="lobby-join-btn" onclick="joinRoom('${r.id}')">Rejoindre</button>
+      </div>
+    `).join('');
+  });
+}
+
+function createRoom(){
+  if(!db||!myName) return;
+  const roomId = myName+'_'+Date.now();
+  db.ref('lobbies/'+currentGame+'/'+roomId).set({
+    id:roomId, p1:myName, p2:null, ts:Date.now()
+  });
+  // Lancer le jeu directement comme p1
+  hide('modalLobby');
+  launchGame(currentGame, roomId, 'p1');
+}
+
+function joinRoom(roomId){
+  if(!db||!myName) return;
+  db.ref('lobbies/'+currentGame+'/'+roomId).update({p2:myName});
+  hide('modalLobby');
+  launchGame(currentGame, roomId, 'p2');
+}
+
+function launchGame(game, roomId, role){
+  const path = 'games/'+game+'/'+roomId;
+  if(game==='TTT') openTTT(path, role);
+  else if(game==='BN') openBN(path, role);
+  else if(game==='P4') openP4(path, role);
+  else if(game==='PFC') openPFC(path, role);
+}
+
 // ══ TIC-TAC-TOE MULTIJOUEUR ══
 let tttState=null, tttRole=null;
 
@@ -1722,7 +1812,7 @@ function tttPlay(i){
   const board=[...(s.board||Array(9).fill(''))];
   board[i]=tttRole;
   const winner=tttCheckWin(board,tttRole)?tttRole:board.every(c=>c)?'draw':null;
-  db.ref('games/ttt').update({board,turn:tttRole==='X'?'O':'X',winner});
+  db.ref(tttPath).update({board,turn:tttRole==='X'?'O':'X',winner});
 }
 
 function tttCheckWin(b,p){
@@ -1732,7 +1822,7 @@ function tttCheckWin(b,p){
 
 function tttReset(){
   if(!db) return;
-  db.ref('games/ttt').set({p1:myName,p2:null,board:Array(9).fill(''),turn:'X',winner:null});
+  db.ref(tttPath).set({p1:myName,p2:null,board:Array(9).fill(''),turn:'X',winner:null});
   tttRole='X';
 }
 
@@ -1754,25 +1844,27 @@ let bnHorizontal=true; // orientation
 let bnHoverCell=-1;
 let bnPendingCells=[]; // cellules du bateau en cours de placement (avant validation)
 
-function openBN(){
+let bnPath='games/bn/default';
+function openBN(path,role){
+  bnPath=path||'games/bn/default';
   hide('modalJeux'); show('modalBN');
   bnMyShips=[]; bnPlaceIdx=0; bnHorizontal=true;
   bnBuildGrids();
   bnUpdatePreview();
   if(!db){bnOffline();return;}
-  db.ref('games/bn').on('value',snap=>{
+  db.ref(bnPath).on('value',snap=>{
     bnState=snap.val();
     bnRender();
   });
-  db.ref('games/bn').once('value',snap=>{
+  db.ref(bnPath).once('value',snap=>{
     const s=snap.val();
     if(!s||!s.p1){
       bnRole='p1';
-      db.ref('games/bn').set({p1:myName,p2:null,p1ships:[],p2ships:[],
+      db.ref(bnPath).set({p1:myName,p2:null,p1ships:[],p2ships:[],
         p1shots:[],p2shots:[],phase:'place',turn:'p1',winner:null,p1ready:false,p2ready:false});
     } else if(!s.p2&&s.p1!==myName){
       bnRole='p2';
-      db.ref('games/bn').update({p2:myName});
+      db.ref(bnPath).update({p2:myName});
     } else if(s.p1===myName){bnRole='p1';}
     else if(s.p2===myName){bnRole='p2';}
   });
@@ -1948,7 +2040,7 @@ function bnValidateShip(){
     upd[bnRole+'ships']=bnMyShips;
     upd[bnRole+'ready']=true;
     if(db) db.ref('games/bn').update(upd).then(()=>{
-      db.ref('games/bn').once('value',snap=>{
+      db.ref(bnPath).once('value',snap=>{
         const s=snap.val();
         if(s&&s.p1ready&&s.p2ready) db.ref('games/bn').update({phase:'play'});
       });
@@ -2015,13 +2107,13 @@ function bnShoot(i){
   upd[bnRole+'shots']=newShots;
   upd.turn=bnRole==='p1'?'p2':'p1';
   if(enemyShips.every(c=>newShots.includes(c))) upd.winner=bnRole;
-  db.ref('games/bn').update(upd);
+  db.ref(bnPath).update(upd);
 }
 
 function bnReset(){
   bnMyShips=[]; bnPlaceIdx=0; bnHorizontal=true; bnHoverCell=-1; bnPendingCells=[];
   if(!db) return;
-  db.ref('games/bn').set({p1:myName,p2:null,p1ships:[],p2ships:[],
+  db.ref(bnPath).set({p1:myName,p2:null,p1ships:[],p2ships:[],
     p1shots:[],p2shots:[],phase:'place',turn:'p1',winner:null,p1ready:false,p2ready:false});
   bnRole='p1';
   bnBuildGrids(); bnUpdatePreview();
@@ -2037,27 +2129,27 @@ function bnOffline(){
 // ══ PUISSANCE 4 MULTIJOUEUR ══
 const P4_COLS=7, P4_ROWS=6;
 let p4State=null, p4Role=null;
+let p4Path='games/p4/default';
 
-function openP4(){
+function openP4(path, role){
+  p4Path = path||'games/p4/default';
   hide('modalJeux'); show('modalP4');
   p4BuildBoard();
   if(!db){p4Offline();return;}
-  db.ref('games/p4').on('value',snap=>{
+  db.ref(p4Path).on('value',snap=>{
     p4State=snap.val();
     p4Render();
   });
-  db.ref('games/p4').once('value',snap=>{
-    const s=snap.val();
-    if(!s||!s.p1){
-      p4Role='p1';
-      db.ref('games/p4').set({
+  if(role==='p1'||!role){
+    p4Role='p1';
+    db.ref(p4Path).set({
         p1:myName, p2:null,
         board: Array(P4_COLS*P4_ROWS).fill(0),
         turn:'p1', winner:null
       });
     } else if(!s.p2 && s.p1!==myName){
       p4Role='p2';
-      db.ref('games/p4').update({p2:myName});
+      db.ref(p4Path).update({p2:myName});
     } else if(s.p1===myName){ p4Role='p1'; }
     else if(s.p2===myName){ p4Role='p2'; }
   });
@@ -2131,7 +2223,7 @@ function p4Drop(col){
 
   board[row*P4_COLS+col]=piece;
   const winner=p4CheckWin(board,piece)?p4Role:board.every(c=>c)?'draw':null;
-  db.ref('games/p4').update({
+  db.ref(p4Path).update({
     board,
     turn:p4Role==='p1'?'p2':'p1',
     winner
@@ -2168,7 +2260,7 @@ function p4CheckWin(board, piece){
 
 function p4Reset(){
   if(!db) return;
-  db.ref('games/p4').set({
+  db.ref(p4Path).set({
     p1:myName, p2:null,
     board:Array(P4_COLS*P4_ROWS).fill(0),
     turn:'p1', winner:null
@@ -2187,18 +2279,20 @@ function p4Offline(){
 const PFC_ICONS={pierre:'🪨',feuille:'📄',ciseaux:'✂️'};
 let pfcState=null, pfcRole=null;
 
-function openPFC(){
+let pfcPath='games/pfc/default';
+function openPFC(path,role){
+  pfcPath=path||'games/pfc/default';
   hide('modalJeux'); show('modalPFC');
   if(!db){pfcOffline();return;}
-  db.ref('games/pfc').on('value',snap=>{
+  db.ref(pfcPath).on('value',snap=>{
     pfcState=snap.val();
     pfcRender();
   });
-  db.ref('games/pfc').once('value',snap=>{
+  db.ref(pfcPath).once('value',snap=>{
     const s=snap.val();
     if(!s||!s.p1){
       pfcRole='p1';
-      db.ref('games/pfc').set({
+      db.ref(pfcPath).set({
         p1:myName,p2:null,
         p1choice:null,p2choice:null,
         p1score:0,p2score:0,
@@ -2206,7 +2300,7 @@ function openPFC(){
       });
     } else if(!s.p2&&s.p1!==myName){
       pfcRole='p2';
-      db.ref('games/pfc').update({p2:myName});
+      db.ref(pfcPath).update({p2:myName});
     } else if(s.p1===myName){pfcRole='p1';}
     else if(s.p2===myName){pfcRole='p2';}
   });
@@ -2231,7 +2325,7 @@ function pfcPlay(choice){
 
   db.ref('games/pfc').update(upd).then(()=>{
     // Vérifier si les deux ont joué
-    db.ref('games/pfc').once('value',snap=>{
+    db.ref(pfcPath).once('value',snap=>{
       const s2=snap.val();
       if(s2.p1choice&&s2.p2choice){
         // Résoudre la manche
@@ -2239,7 +2333,7 @@ function pfcPlay(choice){
         const p1s=s2.p1score+(result==='p1'?1:0);
         const p2s=s2.p2score+(result==='p2'?1:0);
         const won=p1s>=3?'p1':p2s>=3?'p2':null;
-        db.ref('games/pfc').update({
+        db.ref(pfcPath).update({
           p1score:p1s, p2score:p2s,
           round:s2.round+1,
           roundWinner:result,
@@ -2250,7 +2344,7 @@ function pfcPlay(choice){
         // Après 2.5s reset les choix pour la prochaine manche
         if(!won){
           setTimeout(()=>{
-            db.ref('games/pfc').update({p1choice:null,p2choice:null,roundWinner:null});
+            db.ref(pfcPath).update({p1choice:null,p2choice:null,roundWinner:null});
           },2500);
         }
       }
@@ -2331,7 +2425,7 @@ function pfcRender(){
 
 function pfcReset(){
   if(!db) return;
-  db.ref('games/pfc').set({
+  db.ref(pfcPath).set({
     p1:myName,p2:null,
     p1choice:null,p2choice:null,
     p1score:0,p2score:0,
