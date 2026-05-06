@@ -2143,16 +2143,14 @@ function openP4(path, role){
   if(role==='p1'||!role){
     p4Role='p1';
     db.ref(p4Path).set({
-        p1:myName, p2:null,
-        board: Array(P4_COLS*P4_ROWS).fill(0),
-        turn:'p1', winner:null
-      });
-    } else if(!s.p2 && s.p1!==myName){
-      p4Role='p2';
-      db.ref(p4Path).update({p2:myName});
-    } else if(s.p1===myName){ p4Role='p1'; }
-    else if(s.p2===myName){ p4Role='p2'; }
-  });
+      p1:myName, p2:null,
+      board:Array(P4_COLS*P4_ROWS).fill(0),
+      turn:'p1', winner:null
+    });
+  } else if(role==='p2'){
+    p4Role='p2';
+    db.ref(p4Path).update({p2:myName});
+  }
 }
 
 function p4BuildBoard(){
