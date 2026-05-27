@@ -774,6 +774,7 @@
     COLLEC<span>ALL</span>
   </div>
   <div class="header-stats">
+    <div class="stat-pill" id="syncStatus" title="Statut Firebase">⏳ Chargement...</div>
     <div class="stat-pill">Total <strong id="totalCount">0</strong></div>
     <div class="stat-pill">Wishlist <strong id="wishlistCount">0</strong></div>
   </div>
@@ -1018,6 +1019,32 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+
+<!-- Firebase -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
+  import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDLWY-9mY5XTbYkp-U_Os8i8uAtECSwXzs",
+    authDomain: "collecall-b61f9.firebaseapp.com",
+    projectId: "collecall-b61f9",
+    storageBucket: "collecall-b61f9.firebasestorage.app",
+    messagingSenderId: "665399215033",
+    appId: "1:665399215033:web:c4e15bf4bfd55afdaa2c68",
+    measurementId: "G-D105N4GXP5"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // Expose Firebase to global scope so non-module code can use it
+  window.firebaseDB = db;
+  window.firebaseFn = { collection, doc, setDoc, deleteDoc, onSnapshot };
+  window.firebaseReady = true;
+  // Signal que Firebase est prêt
+  window.dispatchEvent(new Event('firebase-ready'));
+</script>
 <script>
 // ============================================================
 // DONNÉES DEMO
@@ -1203,7 +1230,7 @@ const DEMO_ITEMS = [
   { id: 15, cat: 'jeux_plateau', title: 'Catan', series: 'Klaus Teuber', volume: '', state: 'bon', pricePaid: 35, priceValue: 30, cover: 'https://upload.wikimedia.org/wikipedia/en/a/a3/Catan-2015-boxart.jpg', wishlist: false },
 ];
 
-let items = [...DEMO_ITEMS];
+let items = []; // sera chargé depuis Firestore
 let nextId = 100;
 let activeFilter = 'all';
 let activeCat = 'all';
@@ -1217,6 +1244,95 @@ let currentDetailId = null;
 let currentSeriesKey = null;
 let cameraStream = null;
 let barcodeManualVisible = false;
+let firebaseSyncEnabled = false;
+let isDemoMode = false; // true tant que Firebase n'est pas chargé
+
+// ============================================================
+// FIREBASE SYNC
+// ============================================================
+function initFirebaseSync() {
+  if (!window.firebaseDB || !window.firebaseFn) {
+    console.warn('Firebase pas encore prêt, fallback démo');
+    items = [...DEMO_ITEMS];
+    isDemoMode = true;
+    render();
+    return;
+  }
+  const { collection, onSnapshot } = window.firebaseFn;
+  const itemsRef = collection(window.firebaseDB, 'collecall_items');
+
+  // Écoute en temps réel
+  onSnapshot(itemsRef, snapshot => {
+    const remoteItems = [];
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      remoteItems.push({ ...data, id: doc.id });
+    });
+
+    if (remoteItems.length === 0 && !firebaseSyncEnabled) {
+      // Première fois : on charge les items de démo en local pour montrer le rendu
+      // mais on ne les pousse PAS dans Firestore tant que l'utilisateur n'agit pas
+      items = [...DEMO_ITEMS];
+      isDemoMode = true;
+      showToast('🎨 Mode démo - ajoute un item pour activer la sauvegarde', 'success');
+    } else {
+      items = remoteItems;
+      isDemoMode = false;
+    }
+    firebaseSyncEnabled = true;
+    nextId = Math.max(100, ...items.map(i => parseInt(i.id) || 0)) + 1;
+    render();
+  }, err => {
+    console.error('Firebase error:', err);
+    items = [...DEMO_ITEMS];
+    isDemoMode = true;
+    showToast('❌ Erreur Firebase - mode démo', 'error');
+    render();
+  });
+}
+
+async function saveItemToFirebase(item) {
+  if (!window.firebaseDB || !window.firebaseFn) return false;
+  try {
+    const { doc, setDoc } = window.firebaseFn;
+    const itemId = String(item.id);
+    const dataToSave = { ...item };
+    delete dataToSave.id; // l'id est dans la clé du doc
+    await setDoc(doc(window.firebaseDB, 'collecall_items', itemId), dataToSave);
+    return true;
+  } catch(e) {
+    console.error('Save error:', e);
+    showToast('❌ Erreur de sauvegarde', 'error');
+    return false;
+  }
+}
+
+async function deleteItemFromFirebase(itemId) {
+  if (!window.firebaseDB || !window.firebaseFn) return false;
+  try {
+    const { doc, deleteDoc } = window.firebaseFn;
+    await deleteDoc(doc(window.firebaseDB, 'collecall_items', String(itemId)));
+    return true;
+  } catch(e) {
+    console.error('Delete error:', e);
+    return false;
+  }
+}
+
+// Lancer la sync au chargement
+if (window.firebaseReady) {
+  initFirebaseSync();
+} else {
+  window.addEventListener('firebase-ready', initFirebaseSync);
+  // Fallback si Firebase met trop de temps
+  setTimeout(() => {
+    if (!firebaseSyncEnabled) {
+      items = [...DEMO_ITEMS];
+      isDemoMode = true;
+      render();
+    }
+  }, 3000);
+}
 
 // ============================================================
 // RENDU
@@ -1613,6 +1729,18 @@ function renderGrid() {
   // Header counts
   document.getElementById('totalCount').textContent = items.length;
   document.getElementById('wishlistCount').textContent = items.filter(i=>i.wishlist).length;
+
+  // Sync status
+  const syncStatus = document.getElementById('syncStatus');
+  if (syncStatus) {
+    if (isDemoMode) {
+      syncStatus.innerHTML = '🎨 <strong style="color:var(--accent2)">DÉMO</strong>';
+      syncStatus.title = 'Ajoute un item pour activer la sauvegarde Firebase';
+    } else if (firebaseSyncEnabled) {
+      syncStatus.innerHTML = '🔥 <strong style="color:var(--green)">SYNC</strong>';
+      syncStatus.title = 'Sauvegarde Firebase active';
+    }
+  }
 }
 
 // Regroupe les comics par éditeur
@@ -1947,7 +2075,7 @@ function openSeriesDetail(seriesKey) {
 }
 
 // Ajout rapide d'un tome manquant à la wishlist
-function quickAddMissing(seriesKey, volNum) {
+async function quickAddMissing(seriesKey, volNum) {
   const seriesItems = items.filter(i => getSeriesKey(i) === seriesKey);
   if (seriesItems.length === 0) return;
   const first = seriesItems[0];
@@ -1965,10 +2093,17 @@ function quickAddMissing(seriesKey, volNum) {
     priceValue: 0,
     cover: '',
     wishlist: true,
+    addedAt: Date.now(),
   };
-  items.unshift(newItem);
+  if (isDemoMode) {
+    items = [newItem];
+    isDemoMode = false;
+  } else {
+    items.unshift(newItem);
+  }
   openSeriesDetail(seriesKey);
   render();
+  await saveItemToFirebase(newItem);
   showToast(`❤️ T.${volNum} ajouté à la wishlist !`, 'success');
 }
 
@@ -2062,7 +2197,7 @@ function toggleWishlist() {
   status.textContent = isWishlist ? "Je le veux !" : "Je ne l'ai pas encore";
 }
 
-function saveItem() {
+async function saveItem() {
   const cat = document.getElementById('itemCat').value;
   const title = document.getElementById('itemTitle').value.trim();
   if (!cat || !title) { showToast('Remplis la catégorie et le titre !', 'error'); return; }
@@ -2081,11 +2216,26 @@ function saveItem() {
     priceValue: parseFloat(document.getElementById('itemPriceValue').value) || 0,
     cover: document.getElementById('itemCover').value.trim(),
     wishlist: isWishlist,
+    addedAt: Date.now(),
   };
-  items.unshift(item);
+
+  // Premier ajout : on bascule du mode démo vers Firestore
+  if (isDemoMode) {
+    items = [item];
+    isDemoMode = false;
+  } else {
+    items.unshift(item);
+  }
   closeModal('addModal');
   render();
-  showToast('✅ Item ajouté !', 'success');
+
+  // Sauvegarde Firebase
+  const saved = await saveItemToFirebase(item);
+  if (saved) {
+    showToast('✅ Item ajouté et sauvegardé !', 'success');
+  } else {
+    showToast('⚠️ Ajouté localement (Firebase indisponible)', 'error');
+  }
 }
 
 // ============================================================
@@ -2329,12 +2479,16 @@ function openDetail(id) {
   document.getElementById('detailModal').classList.remove('hidden');
 }
 
-function deleteCurrentItem() {
+async function deleteCurrentItem() {
   if (!currentDetailId) return;
   if (!confirm('Supprimer cet item ?')) return;
-  items = items.filter(i => i.id !== currentDetailId);
+  const idToDelete = currentDetailId;
+  items = items.filter(i => i.id !== idToDelete);
   closeModal('detailModal');
   render();
+  if (!isDemoMode) {
+    await deleteItemFromFirebase(idToDelete);
+  }
   showToast('🗑️ Item supprimé', 'error');
 }
 
@@ -2401,7 +2555,9 @@ document.addEventListener('click', e => {
 // ============================================================
 // INIT
 // ============================================================
-render();
+// render() est appelé par initFirebaseSync() après chargement Firebase
+// Si Firebase est déjà prêt (peu probable), on render direct
+if (firebaseSyncEnabled) render();
 </script>
 </body>
 </html>
