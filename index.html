@@ -826,15 +826,11 @@
         <div class="scan-btns">
           <button class="scan-btn primary" onclick="startCamera()">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="15" rx="2"/><path d="M16 3h-8l-2 4h12z"/><circle cx="12" cy="13" r="3"/></svg>
-            Caméra
+            📷 Scanner caméra
           </button>
           <button class="scan-btn" onclick="document.getElementById('photoUpload').click()">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            Upload photo
-          </button>
-          <button class="scan-btn" onclick="document.getElementById('barcodeInput').focus(); document.getElementById('barcodeManual').classList.toggle('active-manual')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5v14M7 5v14M11 5v14M15 5v14M19 5v14"/></svg>
-            Code-barre manuel
+            🤖 Photo IA
           </button>
         </div>
       </div>
@@ -848,14 +844,15 @@
         <button class="scan-btn" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.7);z-index:10" onclick="stopCamera()">✕ Fermer</button>
       </div>
 
-      <!-- Code barre manuel -->
-      <div id="barcodeManual" style="margin-bottom:12px; display:none">
+      <!-- Code barre manuel TOUJOURS visible -->
+      <div style="margin-bottom:12px">
         <div class="form-group">
-          <label class="form-label">Code-barre</label>
+          <label class="form-label">🔢 Code-barre (saisie manuelle)</label>
           <div style="display:flex;gap:8px">
-            <input class="form-input" type="text" id="barcodeInput" placeholder="Ex: 9782344025581">
-            <button class="scan-btn primary" style="white-space:nowrap" onclick="lookupBarcode()">Rechercher</button>
+            <input class="form-input" type="text" id="barcodeInput" placeholder="Ex: 9782344025581" onkeypress="if(event.key==='Enter'){event.preventDefault();lookupBarcode();}">
+            <button class="scan-btn primary" style="white-space:nowrap" onclick="lookupBarcode()">🔍 Chercher</button>
           </div>
+          <div style="font-size:10px;color:var(--muted);margin-top:4px">📚 Google Books · 🎵 MusicBrainz · 🛒 UPC DB · 📖 Open Library</div>
         </div>
       </div>
 
@@ -2163,10 +2160,8 @@ function openAddModal() {
     if (el) el.value = '';
   });
   document.getElementById('itemState').value = 'bon';
-  document.getElementById('barcodeManual').style.display = 'none';
   document.getElementById('gameFields').style.display = 'none';
   document.getElementById('comicsFields').style.display = 'none';
-  barcodeManualVisible = false;
 }
 
 // Show conditional fields based on category
@@ -2245,7 +2240,12 @@ let quaggaRunning = false;
 
 function startCamera() {
   const wrap = document.getElementById('videoWrap');
-  wrap.classList.add('active');
+
+  // Check HTTPS (camera requires secure context, except localhost)
+  if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1' && location.protocol !== 'file:') {
+    showToast('⚠️ La caméra nécessite HTTPS - utilise la saisie manuelle', 'error');
+    return;
+  }
 
   // Check support
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -2253,6 +2253,7 @@ function startCamera() {
     return;
   }
 
+  wrap.classList.add('active');
   showSearchStatus('📷 Démarrage de la caméra...');
 
   Quagga.init({
@@ -2309,8 +2310,6 @@ function startCamera() {
     lastTime = now;
     stopCamera();
     document.getElementById('barcodeInput').value = code;
-    document.getElementById('barcodeManual').style.display = 'block';
-    barcodeManualVisible = true;
     lookupBarcode(code);
   });
 }
@@ -2328,16 +2327,66 @@ function stopCamera() {
 }
 
 // ============================================================
-// LOOKUP BARCODE
+// LOOKUP BARCODE - Cascade multi-sources
 // ============================================================
 async function lookupBarcode(code) {
   code = code || document.getElementById('barcodeInput').value.trim();
   if (!code) return;
 
-  showSearchStatus('🔍 Recherche du code-barre ' + code + '...');
+  // Normalisation : enlever espaces et tirets
+  code = code.replace(/[\s-]/g, '');
 
-  // Open Library (livres/manga)
+  showSearchStatus(`🔍 Recherche du code-barre ${code}...`);
+
+  let found = false;
+
+  // ====== 1. Google Books (le meilleur pour manga/livre FR) ======
   try {
+    showSearchStatus('📚 Google Books...');
+    const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${code}`);
+    const data = await res.json();
+    if (data.items && data.items.length > 0) {
+      const book = data.items[0].volumeInfo;
+      const title = book.title || '';
+      const authors = book.authors ? book.authors.join(', ') : '';
+      let volume = '';
+      // Extraire le numéro de tome du titre (ex: "One Piece T.5" → volume = "T.5")
+      const tomeMatch = title.match(/\b(T\.?\s*\d+|Vol\.?\s*\d+|Tome\s*\d+|#\d+)\b/i);
+      const cleanTitle = tomeMatch ? title.replace(tomeMatch[0], '').trim().replace(/[,:\-–]+$/, '').trim() : title;
+      if (tomeMatch) volume = tomeMatch[0].replace(/\s+/g, '').replace(/tome/i, 'T.');
+
+      document.getElementById('itemTitle').value = cleanTitle;
+      document.getElementById('itemSeries').value = authors;
+      document.getElementById('itemVolume').value = volume;
+
+      // Catégorie : manga si titre japonais/manga détecté, sinon livre
+      const titleLower = title.toLowerCase();
+      const categories = (book.categories || []).join(' ').toLowerCase();
+      if (categories.includes('comic') || categories.includes('manga') || /manga|shonen|shojo|seinen/.test(titleLower)) {
+        document.getElementById('itemCat').value = 'manga';
+        document.getElementById('gameFields').style.display = 'none';
+        document.getElementById('comicsFields').style.display = 'none';
+      } else {
+        document.getElementById('itemCat').value = 'livre';
+      }
+
+      // Couverture
+      if (book.imageLinks) {
+        const cover = book.imageLinks.extraLarge || book.imageLinks.large || book.imageLinks.medium || book.imageLinks.thumbnail || book.imageLinks.smallThumbnail || '';
+        // Forcer HTTPS
+        document.getElementById('itemCover').value = cover.replace(/^http:/, 'https:');
+      }
+
+      hideSearchStatus();
+      showToast('📚 Trouvé via Google Books !', 'success');
+      found = true;
+      return;
+    }
+  } catch(e) { console.warn('Google Books failed:', e); }
+
+  // ====== 2. Open Library (livres/manga) ======
+  if (!found) try {
+    showSearchStatus('📖 Open Library...');
     const res = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${code}&format=json&jscmd=data`);
     const data = await res.json();
     const key = `ISBN:${code}`;
@@ -2348,28 +2397,101 @@ async function lookupBarcode(code) {
       document.getElementById('itemCat').value = 'livre';
       if (book.cover?.large) document.getElementById('itemCover').value = book.cover.large;
       hideSearchStatus();
-      showToast('📚 Infos récupérées depuis Open Library !', 'success');
+      showToast('📖 Trouvé via Open Library !', 'success');
+      found = true;
       return;
     }
-  } catch(e) {}
+  } catch(e) { console.warn('Open Library failed:', e); }
 
-  // UPC Item DB (produits généraux)
-  try {
+  // ====== 3. MusicBrainz (vinyles/CD/cassettes audio) ======
+  if (!found) try {
+    showSearchStatus('🎵 MusicBrainz...');
+    const res = await fetch(`https://musicbrainz.org/ws/2/release/?query=barcode:${code}&fmt=json`, {
+      headers: { 'User-Agent': 'CollecAll/1.0' }
+    });
+    const data = await res.json();
+    if (data.releases && data.releases.length > 0) {
+      const release = data.releases[0];
+      document.getElementById('itemTitle').value = release.title || '';
+      document.getElementById('itemSeries').value = release['artist-credit']?.[0]?.name || '';
+      // Détecter format
+      const format = (release.media?.[0]?.format || '').toLowerCase();
+      if (format.includes('vinyl')) document.getElementById('itemCat').value = 'vinyle';
+      else if (format.includes('cassette')) document.getElementById('itemCat').value = 'cassette_audio';
+      else if (format.includes('cd')) document.getElementById('itemCat').value = 'autre';
+      // Couverture via Cover Art Archive
+      try {
+        const coverRes = await fetch(`https://coverartarchive.org/release/${release.id}/front-500`);
+        if (coverRes.ok) {
+          document.getElementById('itemCover').value = `https://coverartarchive.org/release/${release.id}/front-500`;
+        }
+      } catch(e) {}
+      hideSearchStatus();
+      showToast('🎵 Trouvé via MusicBrainz !', 'success');
+      found = true;
+      return;
+    }
+  } catch(e) { console.warn('MusicBrainz failed:', e); }
+
+  // ====== 4. UPC Item DB (produits généraux) ======
+  if (!found) try {
+    showSearchStatus('🛒 UPC Item DB...');
     const res = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${code}`);
     const data = await res.json();
-    if (data.items?.length > 0) {
+    if (data.items && data.items.length > 0) {
       const item = data.items[0];
       document.getElementById('itemTitle').value = item.title || '';
       document.getElementById('itemSeries').value = item.brand || '';
       if (item.images?.[0]) document.getElementById('itemCover').value = item.images[0];
+
+      // Deviner la catégorie depuis le titre
+      const cat = guessCategoryFromTitle(item.title || '');
+      if (cat) document.getElementById('itemCat').value = cat;
+
       hideSearchStatus();
-      showToast('✅ Infos récupérées !', 'success');
+      showToast('🛒 Trouvé via UPC DB !', 'success');
+      found = true;
       return;
     }
-  } catch(e) {}
+  } catch(e) { console.warn('UPC Item DB failed:', e); }
+
+  // ====== 5. EAN-Search (free tier, fallback) ======
+  if (!found) try {
+    showSearchStatus('🔎 EAN Search...');
+    const res = await fetch(`https://www.ean-search.org/ean/${code}.json`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.name) {
+        document.getElementById('itemTitle').value = data.name;
+        hideSearchStatus();
+        showToast('🔎 Trouvé via EAN Search !', 'success');
+        found = true;
+        return;
+      }
+    }
+  } catch(e) { console.warn('EAN Search failed:', e); }
 
   hideSearchStatus();
-  showToast('❓ Code-barre non trouvé — remplis manuellement', 'error');
+  if (!found) {
+    showToast(`❓ Code-barre ${code} introuvable - remplis manuellement`, 'error');
+  }
+}
+
+// Devine la catégorie depuis le titre d'un produit
+function guessCategoryFromTitle(title) {
+  const t = title.toLowerCase();
+  if (/funko\s*pop|pop!\s*vinyl/.test(t)) return 'pop';
+  if (/blu[\s-]?ray/.test(t)) return 'bluray';
+  if (/\bdvd\b/.test(t)) return 'dvd';
+  if (/vinyl|lp\b/.test(t)) return 'vinyle';
+  if (/vhs/.test(t)) return 'vhs';
+  if (/cassette/.test(t)) return 'cassette_audio';
+  if (/manga|shonen|shojo|seinen/.test(t)) return 'manga';
+  if (/comic|graphic novel/.test(t)) return 'comics';
+  if (/nintendo|switch|playstation|ps[0-9]|xbox|wii|game boy/.test(t)) return 'jeux';
+  if (/board game|jeu de soci/.test(t)) return 'jeux_plateau';
+  if (/figure|figurine|statue/.test(t)) return 'figurine';
+  return null;
 }
 
 // ============================================================
